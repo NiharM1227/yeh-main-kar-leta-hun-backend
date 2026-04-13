@@ -138,20 +138,6 @@ TEAMS = {
 # ─── HISTORICAL MATCH DATA ────────────────────────────────────────────────────
 
 HISTORICAL_STATS = [
-    # Cleared — all data will be uploaded fresh via admin panel
-    {"match":"RCB vs SRH","player":"Travis Head","role":"Batsman","runs":11,"fours":1,"sixes":1,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":14},
-    {"match":"RCB vs SRH","player":"Ishan Kishan","role":"Batsman","runs":80,"fours":7,"sixes":3,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":113},
-    {"match":"RCB vs SRH","player":"Heinrich Klaasen","role":"Batsman","runs":31,"fours":4,"sixes":2,"wickets":0,"catches":2,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":50},
-    {"match":"RCB vs SRH","player":"Nitish Kumar Reddy","role":"All-rounder","runs":1,"fours":0,"sixes":0,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":1},
-    {"match":"RCB vs SRH","player":"Aniket Verma","role":"Batsman","runs":43,"fours":2,"sixes":4,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":58},
-
-    {"match":"RCB vs SRH","player":"Phil Salt","role":"Batsman","runs":8,"fours":0,"sixes":0,"wickets":0,"catches":2,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":14},
-    {"match":"RCB vs SRH","player":"Virat Kohli","role":"Batsman","runs":69,"fours":8,"sixes":5,"wickets":0,"catches":1,"stumpings":0,"maidens":0,"dismissal":"Not Out","mom":0,"hattrick":0,"pts":106},
-    {"match":"RCB vs SRH","player":"Devdutt Padikkal","role":"Batsman","runs":61,"fours":3,"sixes":7,"wickets":0,"catches":3,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":97},
-    {"match":"RCB vs SRH","player":"Rajat Patidar","role":"Batsman","runs":31,"fours":1,"sixes":2,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":41},
-    {"match":"RCB vs SRH","player":"Jitesh Sharma","role":"Batsman","runs":0,"fours":0,"sixes":0,"wickets":0,"catches":1,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":-3},
-    {"match":"RCB vs SRH","player":"Tim David","role":"All-rounder","runs":16,"fours":1,"sixes":1,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Not Out","mom":0,"hattrick":0,"pts":23},
-    {"match":"RCB vs SRH","player":"Jacob Duffy","role":"Bowler","runs":0,"fours":0,"sixes":0,"wickets":3,"catches":0,"stumpings":0,"maidens":0,"dismissal":"DNB","mom":1,"hattrick":0,"pts":95},
 ]
 
 # Runtime storage for new matches (resets on restart — fine for now)
