@@ -436,12 +436,15 @@ Scorecard image is attached."""
         for p in players_data:
             role = p.get("role") or get_player_role(p["player"])
             p["role"] = role
-            # Override MOM from admin field if provided
+            # Reset mom from AI — we control this from admin field only
+            p["mom"] = 0
+            pts = calculate_points(p)
+            # Apply MOM bonus from admin field after calculation
             if mom_player and not mom_applied:
                 if mom_player.strip().lower() in p["player"].strip().lower() or p["player"].strip().lower() in mom_player.strip().lower():
+                    pts += 10
                     p["mom"] = 1
                     mom_applied = True
-            pts = calculate_points(p)
             entry = {
                 "match": match_name,
                 "player": p["player"],
