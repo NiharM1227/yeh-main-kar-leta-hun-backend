@@ -1,516 +1,545 @@
-import os
-import json
-import base64
-import anthropic
-from flask import Flask, request, jsonify, render_template, send_from_directory
-from flask_cors import CORS
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Yeh Main Kar Leta Hu</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f; --surface: #12121a; --surface2: #1a1a26; --border: #2a2a3d;
+    --accent: #f97316; --accent2: #facc15; --text: #f0f0f8; --muted: #6b6b8a;
+    --green: #22c55e; --red: #ef4444;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; max-width: 480px; margin: 0 auto; }
+  .header { background: linear-gradient(135deg, #0f0f1a 0%, #1a0f2e 50%, #0f1a1a 100%); padding: 20px 20px 0; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+  .header-top { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .trophy-icon { font-size: 28px; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.1)} }
+  .header-title { flex: 1; }
+  .header-title h1 { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 2px; color: var(--accent); line-height: 1; }
+  .header-title p { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; letter-spacing: 1px; text-transform: uppercase; }
+  .match-badge { background: var(--accent); color: #000; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px; font-family: 'DM Mono', monospace; }
+  .nav { display: flex; overflow-x: auto; scrollbar-width: none; }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav-btn { background: none; border: none; color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; padding: 12px 16px; cursor: pointer; white-space: nowrap; border-bottom: 2px solid transparent; transition: all 0.2s; }
+  .nav-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .content { padding: 16px; }
+  .section { display: none; }
+  .section.active { display: block; }
+  .section-label { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .rank-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 14px; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; }
+  .rank-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+  .rank-card.r1::before { background: #ffd700; }
+  .rank-card.r2::before { background: #c0c0c0; }
+  .rank-card.r3::before { background: #cd7f32; }
+  .rank-card:hover { border-color: var(--accent); transform: translateX(2px); }
+  .rank-num { font-family: 'Bebas Neue', sans-serif; font-size: 28px; color: var(--muted); width: 32px; text-align: center; line-height: 1; }
+  .rank-card.r1 .rank-num { color: #ffd700; }
+  .rank-card.r2 .rank-num { color: #c0c0c0; }
+  .rank-card.r3 .rank-num { color: #cd7f32; }
+  .rank-info { flex: 1; }
+  .rank-name { font-weight: 600; font-size: 15px; margin-bottom: 3px; }
+  .rank-diff { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; }
+  .rank-pts { text-align: right; }
+  .rank-pts .pts-num { font-family: 'Bebas Neue', sans-serif; font-size: 26px; color: var(--accent); line-height: 1; }
+  .rank-pts .pts-label { font-size: 10px; color: var(--muted); font-family: 'DM Mono', monospace; }
+  .match-scroll { overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; }
+  .match-scroll::-webkit-scrollbar { display: none; }
+  .match-table { min-width: 600px; border-collapse: collapse; font-size: 12px; width: 100%; }
+  .match-table th { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); text-transform: uppercase; padding: 8px 10px; text-align: center; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .match-table th:first-child { text-align: left; }
+  .match-table td { padding: 10px; text-align: center; border-bottom: 1px solid rgba(42,42,61,0.5); font-family: 'DM Mono', monospace; font-size: 12px; }
+  .match-table td:first-child { text-align: left; font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 13px; white-space: nowrap; }
+  .pts-pos { color: var(--green); }
+  .pts-neg { color: var(--red); }
+  .pts-zero { color: var(--muted); }
+  .pts-total { color: var(--accent); font-weight: 600; font-size: 13px !important; }
+  .team-select { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+  .team-btn { background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; padding: 10px 8px; border-radius: 10px; cursor: pointer; transition: all 0.2s; }
+  .team-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
+  .team-btn:hover:not(.active) { border-color: var(--accent); }
+  .team-header-card { background: linear-gradient(135deg, var(--surface2), var(--surface)); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+  .team-owner-name { font-family: 'Bebas Neue', sans-serif; font-size: 28px; color: var(--accent); letter-spacing: 1px; }
+  .team-stats-row { display: flex; gap: 16px; margin-top: 10px; }
+  .team-stat { flex: 1; background: var(--bg); border-radius: 10px; padding: 10px; text-align: center; }
+  .team-stat .val { font-family: 'Bebas Neue', sans-serif; font-size: 24px; color: var(--accent); line-height: 1; }
+  .team-stat .lbl { font-size: 10px; color: var(--muted); font-family: 'DM Mono', monospace; text-transform: uppercase; margin-top: 2px; }
+  .player-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; cursor: pointer; }
+  .player-role-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .role-bat { background: #60a5fa; }
+  .role-bowl { background: #f472b6; }
+  .role-all { background: #a78bfa; }
+  .player-info { flex: 1; min-width: 0; }
+  .player-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .player-meta { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; display: flex; gap: 8px; align-items: center; margin-top: 2px; }
+  .cvc-badge { font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 4px; }
+  .c-badge { background: #ffd700; color: #000; }
+  .vc-badge { background: #c0c0c0; color: #000; }
+  .player-pts { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--accent); line-height: 1; text-align: right; }
+  .player-pts.neg { color: var(--red); }
+  .player-pts.zero { color: var(--muted); }
+  .player-pts-label { font-size: 9px; color: var(--muted); font-family: 'DM Mono', monospace; text-align: right; }
+  .search-bar { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; width: 100%; margin-bottom: 12px; outline: none; transition: border-color 0.2s; }
+  .search-bar:focus { border-color: var(--accent); }
+  .search-bar::placeholder { color: var(--muted); }
+  .filter-row { display: flex; gap: 6px; margin-bottom: 14px; overflow-x: auto; scrollbar-width: none; }
+  .filter-row::-webkit-scrollbar { display: none; }
+  .filter-btn { background: var(--surface); border: 1px solid var(--border); color: var(--muted); font-size: 11px; font-weight: 600; padding: 6px 12px; border-radius: 20px; cursor: pointer; white-space: nowrap; transition: all 0.2s; font-family: 'DM Sans', sans-serif; }
+  .filter-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s; }
+  .stat-card:hover { border-color: var(--accent); }
+  .stat-card-top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .stat-player-name { flex: 1; font-weight: 600; font-size: 14px; }
+  .stat-total-pts { font-family: 'Bebas Neue', sans-serif; font-size: 24px; color: var(--accent); line-height: 1; }
+  .stat-total-pts.neg { color: var(--red); }
+  .stat-bars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .stat-mini { background: var(--bg); border-radius: 8px; padding: 6px 8px; text-align: center; }
+  .stat-mini .sv { font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500; }
+  .stat-mini .sl { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 1px; }
+  .rules-section { margin-bottom: 16px; }
+  .rules-title { font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 1px; color: var(--accent); margin-bottom: 10px; }
+  .rule-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 14px; background: var(--surface); border-radius: 8px; margin-bottom: 4px; font-size: 13px; }
+  .rule-row .rval { font-family: 'DM Mono', monospace; font-weight: 500; color: var(--accent2); }
+  .rule-row .rval.neg { color: var(--red); }
+  .rule-note { font-size: 11px; color: var(--muted); padding: 8px 14px; background: var(--surface); border-radius: 8px; margin-bottom: 4px; border-left: 3px solid var(--accent); line-height: 1.5; }
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 200; align-items: flex-end; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border-radius: 20px 20px 0 0; width: 100%; max-width: 480px; max-height: 80vh; overflow-y: auto; padding: 20px; border: 1px solid var(--border); border-bottom: none; animation: slideUp 0.3s ease; position: relative; }
+  @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+  .modal-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 16px; }
+  .modal-close { position: absolute; top: 16px; right: 20px; background: var(--surface2); border: none; color: var(--muted); font-size: 18px; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; }
+  .modal-player-name { font-family: 'Bebas Neue', sans-serif; font-size: 28px; color: var(--text); letter-spacing: 1px; margin-bottom: 4px; }
+  .modal-match-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--surface2); border-radius: 8px; margin-bottom: 6px; font-size: 13px; }
+  .modal-match-name { color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px; }
+  .modal-match-pts { font-family: 'DM Mono', monospace; font-weight: 600; }
+  .pts-good { color: var(--green); }
+  .pts-bad { color: var(--red); }
+  .pts-mid { color: var(--text); }
+  .loading { text-align: center; padding: 40px; color: var(--muted); }
+  .match-pill-row { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin-bottom: 14px; }
+  .match-pill-row::-webkit-scrollbar { display: none; }
+  .match-pill { background: var(--surface); border: 1px solid var(--border); color: var(--muted); font-size: 10px; font-weight: 600; padding: 6px 10px; border-radius: 20px; cursor: pointer; white-space: nowrap; transition: all 0.2s; font-family: 'DM Mono', monospace; }
+  .match-pill.active { background: var(--surface2); color: var(--text); border-color: var(--accent); }
+  .banter-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 12px; }
+  .banter-match { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+  .banter-text { font-size: 14px; line-height: 1.6; color: var(--text); white-space: pre-wrap; }
+  .banter-loading { text-align:center; padding: 30px; color: var(--muted); font-size: 13px; }
+  .banter-empty { text-align:center; padding: 40px 20px; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-top">
+    <div class="trophy-icon">🏆</div>
+    <div class="header-title">
+      <h1>Yeh Main Kar Leta Hu</h1>
+      <p id="last-updated">Loading...</p>
+    </div>
+    <div class="match-badge" id="match-count">...</div>
+  </div>
+  <nav class="nav">
+    <button class="nav-btn active" onclick="showTab('leaderboard')">Leaderboard</button>
+    <button class="nav-btn" onclick="showTab('matches')">Matches</button>
+    <button class="nav-btn" onclick="showTab('teams')">My Team</button>
+    <button class="nav-btn" onclick="showTab('players')">Players</button>
+    <button class="nav-btn" onclick="showTab('banter')">🔥 Banter</button>
+    <button class="nav-btn" onclick="showTab('rules')">Rules</button>
+  </nav>
+</div>
 
-app = Flask(__name__)
-CORS(app)
+<div class="content">
+  <div class="section active" id="tab-leaderboard">
+    <div class="section-label">Season Standings</div>
+    <div id="leaderboard-list"><div class="loading">Loading...</div></div>
+  </div>
 
-client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+  <div class="section" id="tab-matches">
+    <div class="section-label">Match-wise Points</div>
+    <div class="match-scroll"><table class="match-table" id="match-table"></table></div>
+  </div>
 
-# ─── TEAM DATA ────────────────────────────────────────────────────────────────
+  <div class="section" id="tab-teams">
+    <div class="section-label">Select a Team</div>
+    <div class="team-select" id="team-buttons"></div>
+    <div id="team-details"></div>
+  </div>
 
-TEAMS = {
-    "Vijay": {"players": [
-        {"name":"Virat Kohli","role":"Batsman","ipl":"RCB","cvc":"C"},
-        {"name":"Sanju Samson","role":"Batsman","ipl":"CSK","cvc":"VC"},
-        {"name":"Sai Sudharsan","role":"Batsman","ipl":"GT","cvc":None},
-        {"name":"Ravindra Jadeja","role":"All-rounder","ipl":"RR","cvc":None},
-        {"name":"Arshdeep Singh","role":"Bowler","ipl":"PK","cvc":None},
-        {"name":"Yuzvendra Chahal","role":"Bowler","ipl":"PK","cvc":None},
-        {"name":"Harpreet Brar","role":"Bowler","ipl":"PK","cvc":None},
-        {"name":"Jasprit Bumrah","role":"Bowler","ipl":"MI","cvc":None},
-        {"name":"Rachin Ravindra","role":"All-rounder","ipl":"KKR","cvc":None},
-        {"name":"Finn Allen","role":"Batsman","ipl":"KKR","cvc":None},
-        {"name":"Dewald Brewis","role":"Bowler","ipl":"CSK","cvc":None},
-        {"name":"Deepak Chahar","role":"Bowler","ipl":"MI","cvc":None},
-        {"name":"Tim David","role":"All-rounder","ipl":"RCB","cvc":None},
-    ]},
-    "Yash Shah": {"players": [
-        {"name":"Abhishek Sharma","role":"All-rounder","ipl":"SRH","cvc":"C"},
-        {"name":"Heinrich Klaasen","role":"Batsman","ipl":"SRH","cvc":"VC"},
-        {"name":"Prabhsimran Singh","role":"Batsman","ipl":"PK","cvc":None},
-        {"name":"Washington Sundar","role":"All-rounder","ipl":"GT","cvc":None},
-        {"name":"Sunil Narine","role":"All-rounder","ipl":"KKR","cvc":None},
-        {"name":"Jitesh Sharma","role":"Batsman","ipl":"RCB","cvc":None},
-        {"name":"Shashank Singh","role":"All-rounder","ipl":"PK","cvc":None},
-        {"name":"Nitish Kumar Reddy","role":"All-rounder","ipl":"SRH","cvc":None},
-        {"name":"Rinku Singh","role":"Batsman","ipl":"KKR","cvc":None},
-        {"name":"Angkrish Raghuvanshi","role":"Batsman","ipl":"KKR","cvc":None},
-        {"name":"Azmatullah Omarzai","role":"All-rounder","ipl":"PK","cvc":None},
-        {"name":"Devdutt Padikkal","role":"Batsman","ipl":"RCB","cvc":None},
-        {"name":"Tushar Deshpande","role":"Bowler","ipl":"RR","cvc":None},
-    ]},
-    "Samay Maru": {"players": [
-        {"name":"Shubman Gill","role":"Batsman","ipl":"GT","cvc":"C"},
-        {"name":"Mitchell Marsh","role":"All-rounder","ipl":"LSG","cvc":"VC"},
-        {"name":"Ruturaj Gaikwad","role":"Batsman","ipl":"CSK","cvc":None},
-        {"name":"Krunal Pandya","role":"All-rounder","ipl":"RCB","cvc":None},
-        {"name":"Ayush Mhatre","role":"Batsman","ipl":"CSK","cvc":None},
-        {"name":"Jason Holder","role":"All-rounder","ipl":"GT","cvc":None},
-        {"name":"Khaleel Ahmed","role":"Bowler","ipl":"CSK","cvc":None},
-        {"name":"Bhuvneshwar Kumar","role":"Bowler","ipl":"RCB","cvc":None},
-        {"name":"David Miller","role":"Batsman","ipl":"DC","cvc":None},
-        {"name":"Riyan Parag","role":"All-rounder","ipl":"RR","cvc":None},
-        {"name":"Marco Jansen","role":"All-rounder","ipl":"PK","cvc":None},
-        {"name":"Nehal Wadhera","role":"Batsman","ipl":"PK","cvc":None},
-        {"name":"Sherfane Rutherford","role":"All-rounder","ipl":"MI","cvc":None},
-    ]},
-    "Harsh Gupta": {"players": [
-        {"name":"Rohit Sharma","role":"Batsman","ipl":"MI","cvc":"C"},
-        {"name":"Ishan Kishan","role":"Batsman","ipl":"SRH","cvc":"VC"},
-        {"name":"Travis Head","role":"Batsman","ipl":"SRH","cvc":None},
-        {"name":"Rishabh Pant","role":"Batsman","ipl":"LSG","cvc":None},
-        {"name":"Mohammed Siraj","role":"Bowler","ipl":"GT","cvc":None},
-        {"name":"Pat Cummins","role":"Bowler","ipl":"SRH","cvc":None},
-        {"name":"Dhruv Jurel","role":"Batsman","ipl":"RR","cvc":None},
-        {"name":"Jacob Bethell","role":"All-rounder","ipl":"RCB","cvc":None},
-        {"name":"Harshal Patel","role":"Bowler","ipl":"RCB","cvc":None},
-        {"name":"Marcus Stoinis","role":"All-rounder","ipl":"PK","cvc":None},
-        {"name":"Naman Dhir","role":"Batsman","ipl":"MI","cvc":None},
-        {"name":"Shardul Thakur","role":"All-rounder","ipl":"MI","cvc":None},
-        {"name":"Anrich Nortje","role":"Bowler","ipl":"LSG","cvc":None},
-    ]},
-    "Vikram Jumani": {"players": [
-        {"name":"Yashasvi Jaiswal","role":"Batsman","ipl":"RR","cvc":"C"},
-        {"name":"Nicholas Pooran","role":"Batsman","ipl":"LSG","cvc":"VC"},
-        {"name":"Shreyas Iyer","role":"Batsman","ipl":"PK","cvc":None},
-        {"name":"Priyansh Arya","role":"Batsman","ipl":"PK","cvc":None},
-        {"name":"Shimron Hetmyer","role":"Batsman","ipl":"RR","cvc":None},
-        {"name":"Ravi Bishnoi","role":"Bowler","ipl":"RR","cvc":None},
-        {"name":"Pathum Nissanka","role":"Batsman","ipl":"DC","cvc":None},
-        {"name":"Tristan Stubbs","role":"Batsman","ipl":"DC","cvc":None},
-        {"name":"Mitchell Starc","role":"Bowler","ipl":"DC","cvc":None},
-        {"name":"Suyash Sharma","role":"Bowler","ipl":"RCB","cvc":None},
-        {"name":"Josh Inglis","role":"Batsman","ipl":"LSG","cvc":None},
-        {"name":"Jofra Archer","role":"Bowler","ipl":"RR","cvc":None},
-        {"name":"Prashant Veer","role":"Bowler","ipl":"CSK","cvc":None},
-    ]},
-    "Rishub Bubna": {"players": [
-        {"name":"Hardik Pandya","role":"All-rounder","ipl":"MI","cvc":"C"},
-        {"name":"Axar Patel","role":"All-rounder","ipl":"DC","cvc":"VC"},
-        {"name":"Tilak Varma","role":"Batsman","ipl":"MI","cvc":None},
-        {"name":"Kuldeep Yadav","role":"Bowler","ipl":"DC","cvc":None},
-        {"name":"Cameron Green","role":"All-rounder","ipl":"KKR","cvc":None},
-        {"name":"Rajat Patidar","role":"Batsman","ipl":"RCB","cvc":None},
-        {"name":"Glenn Phillips","role":"All-rounder","ipl":"GT","cvc":None},
-        {"name":"Mitchell Santner","role":"All-rounder","ipl":"MI","cvc":None},
-        {"name":"Vaibhav Arora","role":"Bowler","ipl":"KKR","cvc":None},
-        {"name":"Avesh Khan","role":"Bowler","ipl":"LSG","cvc":None},
-        {"name":"Ryan Rickelton","role":"Batsman","ipl":"MI","cvc":None},
-        {"name":"Quinton de Kock","role":"Batsman","ipl":"MI","cvc":None},
-        {"name":"Rahul Tewatia","role":"All-rounder","ipl":"GT","cvc":None},
-    ]},
-    "Nihar Mehta": {"players": [
-        {"name":"KL Rahul","role":"Batsman","ipl":"DC","cvc":"C"},
-        {"name":"Aiden Markram","role":"All-rounder","ipl":"LSG","cvc":"VC"},
-        {"name":"Vaibhav Suryavanshi","role":"Batsman","ipl":"RR","cvc":None},
-        {"name":"Shivam Dube","role":"All-rounder","ipl":"CSK","cvc":None},
-        {"name":"Ajinkya Rahane","role":"Batsman","ipl":"KKR","cvc":None},
-        {"name":"Sarfaraz Khan","role":"Batsman","ipl":"CSK","cvc":None},
-        {"name":"Sai Kishore","role":"Bowler","ipl":"GT","cvc":None},
-        {"name":"Liam Livingstone","role":"All-rounder","ipl":"SRH","cvc":None},
-        {"name":"Jacob Duffy","role":"Bowler","ipl":"RCB","cvc":None},
-        {"name":"Digvesh Rathi","role":"Bowler","ipl":"LSG","cvc":None},
-        {"name":"Prithvi Shaw","role":"Batsman","ipl":"DC","cvc":None},
-        {"name":"Tim Seifert","role":"Batsman","ipl":"KKR","cvc":None},
-        {"name":"Vignesh Puthur","role":"Bowler","ipl":"RR","cvc":None},
-    ]},
-    "Qais / Vaishali": {"players": [
-        {"name":"Suryakumar Yadav","role":"Batsman","ipl":"MI","cvc":"C"},
-        {"name":"Varun Chakravarthy","role":"Bowler","ipl":"KKR","cvc":"VC"},
-        {"name":"Jos Buttler","role":"Batsman","ipl":"GT","cvc":None},
-        {"name":"Phil Salt","role":"Batsman","ipl":"RCB","cvc":None},
-        {"name":"Trent Boult","role":"Bowler","ipl":"MI","cvc":None},
-        {"name":"Rashid Khan","role":"Bowler","ipl":"GT","cvc":None},
-        {"name":"Will Jacks","role":"All-rounder","ipl":"MI","cvc":None},
-        {"name":"Mohammad Shami","role":"Bowler","ipl":"LSG","cvc":None},
-        {"name":"Rahul Tripathi","role":"Batsman","ipl":"KKR","cvc":None},
-        {"name":"Noor Ahmad","role":"Bowler","ipl":"CSK","cvc":None},
-        {"name":"Venkatesh Iyer","role":"All-rounder","ipl":"RCB","cvc":None},
-        {"name":"Abhishek Porel","role":"Batsman","ipl":"DC","cvc":None},
-        {"name":"Vyshak Vijaykumar","role":"Bowler","ipl":"PK","cvc":None},
-    ]},
+  <div class="section" id="tab-banter">
+    <div class="section-label">Match Banter</div>
+    <div id="banter-list"><div class="loading">Loading banter...</div></div>
+  </div>
+
+    <input type="text" class="search-bar" placeholder="Search player..." id="player-search" oninput="filterPlayers()">
+    <div class="filter-row">
+      <button class="filter-btn active" onclick="setRoleFilter('All',this)">All</button>
+      <button class="filter-btn" onclick="setRoleFilter('Batsman',this)">Batsmen</button>
+      <button class="filter-btn" onclick="setRoleFilter('Bowler',this)">Bowlers</button>
+      <button class="filter-btn" onclick="setRoleFilter('All-rounder',this)">All-rounders</button>
+    </div>
+    <div class="match-pill-row" id="match-pills"></div>
+    <div id="player-list"><div class="loading">Loading...</div></div>
+  </div>
+
+  <div class="section" id="tab-rules">
+    <div class="rules-section">
+      <div class="rules-title">⚡ Scoring Rules</div>
+      <div class="rule-row"><span>1 Run</span><span class="rval">+1 pt</span></div>
+      <div class="rule-row"><span>1 Wicket</span><span class="rval">+25 pts</span></div>
+      <div class="rule-row"><span>1 Catch</span><span class="rval">+3 pts</span></div>
+      <div class="rule-row"><span>1 Stumping</span><span class="rval">+5 pts</span></div>
+      <div class="rule-row"><span>1 Six</span><span class="rval">+2 pts</span></div>
+      <div class="rule-row"><span>1 Four</span><span class="rval">+1 pt</span></div>
+    </div>
+    <div class="rules-section">
+      <div class="rules-title">🎯 Milestone Bonuses</div>
+      <div class="rule-row"><span>Century / Hat-trick / 5 Wkts</span><span class="rval">+30 pts</span></div>
+      <div class="rule-row"><span>75 Runs / 4 Wickets</span><span class="rval">+20 pts</span></div>
+      <div class="rule-row"><span>Half-century / 3 Wkts / Maiden</span><span class="rval">+10 pts</span></div>
+      <div class="rule-row"><span>30 Runs / 2 Wickets</span><span class="rval">+5 pts</span></div>
+      <div class="rule-row"><span>Man of the Match</span><span class="rval">+10 pts</span></div>
+    </div>
+    <div class="rules-section">
+      <div class="rules-title">🦆 Duck / Not Out</div>
+      <div class="rule-row"><span>Batsman — Duck</span><span class="rval neg">−6 pts</span></div>
+      <div class="rule-row"><span>All-rounder — Duck</span><span class="rval neg">−4 pts</span></div>
+      <div class="rule-row"><span>Bowler — Duck</span><span class="rval neg">−2 pts</span></div>
+      <div class="rule-row"><span>Batsman — Not Out</span><span class="rval">+6 pts</span></div>
+      <div class="rule-row"><span>All-rounder — Not Out</span><span class="rval">+4 pts</span></div>
+      <div class="rule-row"><span>Bowler — Not Out</span><span class="rval">+2 pts</span></div>
+    </div>
+    <div class="rules-section">
+      <div class="rules-title">⚠️ C/VC Rules (from Match 7)</div>
+      <div class="rule-row"><span>Change of Captain</span><span class="rval neg">−150 pts</span></div>
+      <div class="rule-row"><span>Change of Vice Captain</span><span class="rval neg">−75 pts</span></div>
+      <div class="rule-note">Changes before Match 5 are exempt. Deductions apply per change going forward.</div>
+    </div>
+    <div class="rules-section">
+      <div class="rules-title">🔄 Replacement Rule</div>
+      <div class="rule-note">If a player is ruled out, the team owner may pick a replacement from the unsold players list. Replacement points count only from the match they are added — no backdated points.</div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <button class="modal-close" onclick="document.getElementById('modal').classList.remove('open')">✕</button>
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<script>
+let lbData = [], matchesList = [], teamsData = {}, playersData = [], cvcChanges = [];
+let roleFilter = 'All', matchFilter = 'All';
+
+async function loadAll() {
+  try {
+    const [lbRes, teamsRes, playersRes] = await Promise.all([
+      fetch('/api/leaderboard'), fetch('/api/teams'), fetch('/api/players')
+    ]);
+    const lb = await lbRes.json();
+    const teams = await teamsRes.json();
+    const players = await playersRes.json();
+    lbData = lb.leaderboard;
+    matchesList = lb.matches;
+    cvcChanges = lb.cvc_changes || [];
+    teamsData = teams.teams;
+    playersData = players.players;
+    const matchCount = matchesList.length;
+    document.getElementById('match-count').textContent = `M${matchCount} / 74`;
+    document.getElementById('last-updated').textContent = `Updated through Match ${matchCount}`;
+    renderLeaderboard();
+    renderMatchTable();
+    renderTeamButtons();
+    renderMatchPills();
+    renderPlayerList();
+  } catch(e) {
+    console.error(e);
+  }
 }
 
-# ─── HISTORICAL MATCH DATA ────────────────────────────────────────────────────
+function roleDot(r) { return r === 'Batsman' ? 'role-bat' : r === 'Bowler' ? 'role-bowl' : 'role-all'; }
 
-HISTORICAL_STATS = [
-]
+function renderLeaderboard() {
+  const container = document.getElementById('leaderboard-list');
+  container.innerHTML = lbData.map((t, i) => {
+    const rankClass = i < 3 ? `r${i+1}` : '';
+    const diff = i > 0 ? (lbData[i-1].total - t.total).toFixed(1) : null;
+    return `<div class="rank-card ${rankClass}" onclick="showTeam('${t.name}')">
+      <div class="rank-num">${t.rank}</div>
+      <div class="rank-info">
+        <div class="rank-name">${t.name}</div>
+        <div class="rank-diff">${diff ? `▲ ${diff} behind #${t.rank-1}` : '🏆 Leader'}</div>
+      </div>
+      <div class="rank-pts"><div class="pts-num">${t.total}</div><div class="pts-label">pts</div></div>
+    </div>`;
+  }).join('');
+}
 
-# Runtime storage for new matches (resets on restart — fine for now)
-NEW_MATCH_STATS = []
+function renderMatchTable() {
+  const table = document.getElementById('match-table');
+  let html = `<thead><tr><th>Team</th>${matchesList.map(m=>`<th>${m.replace(' vs ','<br>')}</th>`).join('')}<th>Total</th></tr></thead><tbody>`;
+  lbData.forEach(t => {
+    html += `<tr><td>${t.name}</td>${matchesList.map(m => {
+      const p = t.match_pts[m] || 0;
+      const cls = p > 0 ? 'pts-pos' : p < 0 ? 'pts-neg' : 'pts-zero';
+      return `<td class="${cls}">${p == 0 ? '–' : p}</td>`;
+    }).join('')}<td class="pts-total">${t.total}</td></tr>`;
+  });
+  table.innerHTML = html + '</tbody>';
+}
 
-# C/VC change penalties
-CVC_CHANGES = []
+function renderTeamButtons() {
+  const container = document.getElementById('team-buttons');
+  container.innerHTML = Object.keys(teamsData).map(owner =>
+    `<button class="team-btn" onclick="selectTeam('${owner}',this)">${owner}</button>`
+  ).join('');
+}
 
-# ─── SCORING LOGIC ────────────────────────────────────────────────────────────
+function selectTeam(owner, el) {
+  document.querySelectorAll('.team-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderTeamDetail(owner);
+}
 
-def calculate_points(player_data):
-    """Calculate fantasy points for a player's match performance."""
-    runs = player_data.get("runs", 0)
-    fours = player_data.get("fours", 0)
-    sixes = player_data.get("sixes", 0)
-    wickets = player_data.get("wickets", 0)
-    catches = player_data.get("catches", 0)
-    stumpings = player_data.get("stumpings", 0)
-    maidens = player_data.get("maidens", 0)
-    dismissal = player_data.get("dismissal", "")
-    mom = player_data.get("mom", 0)
-    hattrick = player_data.get("hattrick", 0)
-    role = player_data.get("role", "Batsman")
+function showTeam(owner) {
+  showTab('teams');
+  setTimeout(() => {
+    const btn = [...document.querySelectorAll('.team-btn')].find(b => b.textContent === owner);
+    if (btn) selectTeam(owner, btn);
+  }, 50);
+}
 
-    pts = 0
+function renderTeamDetail(owner) {
+  const players = teamsData[owner];
+  if (!players) return;
+  const lb = lbData.find(t => t.name === owner);
+  const rank = lb ? lb.rank : '?';
+  const total = lb ? lb.total : 0;
+  const penalty = lb ? lb.penalty : 0;
+  const ownerCvcChanges = cvcChanges.filter(c => c.team === owner);
 
-    # Base points
-    pts += runs * 1
-    pts += fours * 1
-    pts += sixes * 2
-    pts += wickets * 25
-    pts += catches * 3
-    pts += stumpings * 5
-    pts += maidens * 10
+  document.getElementById('team-details').innerHTML = `
+    <div class="team-header-card">
+      <div class="team-owner-name">${owner}</div>
+      <div class="team-stats-row">
+        <div class="team-stat"><div class="val">#${rank}</div><div class="lbl">Rank</div></div>
+        <div class="team-stat"><div class="val">${total}</div><div class="lbl">Total Pts</div></div>
+        <div class="team-stat"><div class="val">${players.length}</div><div class="lbl">Players</div></div>
+      </div>
+      ${ownerCvcChanges.length ? `
+        <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
+          ${ownerCvcChanges.map(c => `
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;margin-bottom:6px">
+              <div>
+                <span style="color:var(--red);font-weight:600">${c.type === 'C' ? 'Captain' : 'Vice Captain'} change</span>
+                <span style="color:var(--muted);font-family:'DM Mono';font-size:10px;margin-left:6px">${c.date}</span>
+                <div style="color:var(--muted);font-size:11px;margin-top:2px">${c.from} → ${c.to}</div>
+              </div>
+              <span style="color:var(--red);font-family:'DM Mono';font-weight:600">${c.penalty} pts</span>
+            </div>
+          `).join('')}
+        </div>` : ''}
+    </div>
+    ${players.map(p => {
+      const ptsClass = p.display_pts > 0 ? '' : p.display_pts < 0 ? 'neg' : 'zero';
+      const cvcBadge = p.cvc ? `<span class="cvc-badge ${p.cvc==='C'?'c-badge':'vc-badge'}">${p.cvc}</span>` : '';
+      const multLabel = p.cvc === 'C' ? '×2' : p.cvc === 'VC' ? '×1.5' : '';
+      return `<div class="player-card" onclick="openPlayerModal('${p.name}')">
+        <div class="player-role-dot ${roleDot(p.role)}"></div>
+        <div class="player-info">
+          <div class="player-name">${p.name}</div>
+          <div class="player-meta">${p.ipl||'?'} ${cvcBadge}</div>
+        </div>
+        <div>
+          <div class="player-pts ${ptsClass}">${p.display_pts}</div>
+          <div class="player-pts-label">pts${multLabel}</div>
+        </div>
+      </div>`;
+    }).join('')}`;
+}
 
-    # Duck penalty
-    if runs == 0 and dismissal == "Out":
-        if role == "Batsman":
-            pts -= 6
-        elif role == "All-rounder":
-            pts -= 4
-        elif role == "Bowler":
-            pts -= 2
+function renderMatchPills() {
+  const container = document.getElementById('match-pills');
+  container.innerHTML = ['All', ...matchesList].map(m =>
+    `<button class="match-pill ${m==='All'?'active':''}" onclick="setMatchFilter('${m}',this)">${m==='All'?'All Matches':m}</button>`
+  ).join('');
+}
 
-    # Not out bonus
-    if dismissal == "Not Out":
-        if role == "Batsman":
-            pts += 6
-        elif role == "All-rounder":
-            pts += 4
-        elif role == "Bowler":
-            pts += 2
+function setMatchFilter(m, el) {
+  matchFilter = m;
+  document.querySelectorAll('.match-pill').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderPlayerList();
+}
 
-    # Milestone bonuses — batting
-    if runs >= 100:
-        pts += 30
-    elif runs >= 75:
-        pts += 20
-    elif runs >= 50:
-        pts += 10
-    elif runs >= 30:
-        pts += 5
+function setRoleFilter(r, el) {
+  roleFilter = r;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderPlayerList();
+}
 
-    # Milestone bonuses — bowling
-    if hattrick:
-        pts += 30
-    if wickets >= 5:
-        pts += 30
-    elif wickets == 4:
-        pts += 20
-    elif wickets == 3:
-        pts += 10
-    elif wickets == 2:
-        pts += 5
+function filterPlayers() { renderPlayerList(); }
 
-    # MOM
-    if mom:
-        pts += 10
+function renderPlayerList() {
+  const search = document.getElementById('player-search').value.toLowerCase();
+  let players = [...playersData];
+  if (roleFilter !== 'All') players = players.filter(p => p.role === roleFilter);
+  if (search) players = players.filter(p => p.name.toLowerCase().includes(search));
 
-    return pts
+  if (matchFilter !== 'All') {
+    players = players.map(p => {
+      const m = p.matches.find(m => m.match === matchFilter);
+      return m ? { ...p, filteredPts: m.pts } : null;
+    }).filter(Boolean).sort((a,b) => b.filteredPts - a.filteredPts);
+  }
 
+  document.getElementById('player-list').innerHTML = players.map(p => {
+    const pts = matchFilter !== 'All' ? p.filteredPts : p.total_pts;
+    return `<div class="stat-card" onclick="openPlayerModal('${p.name}')">
+      <div class="stat-card-top">
+        <div class="player-role-dot ${roleDot(p.role)}" style="width:10px;height:10px;flex-shrink:0"></div>
+        <div class="stat-player-name">${p.name}</div>
+        <div>
+          <div class="stat-total-pts ${pts<0?'neg':''}">${pts}</div>
+          <div style="font-size:9px;color:var(--muted);font-family:'DM Mono';text-align:right">${matchFilter==='All'?'total':'match'}</div>
+        </div>
+      </div>
+      <div class="stat-bars">
+        <div class="stat-mini"><div class="sv">${p.total_runs}</div><div class="sl">Runs</div></div>
+        <div class="stat-mini"><div class="sv">${p.total_wkts}</div><div class="sl">Wkts</div></div>
+        <div class="stat-mini"><div class="sv">${p.matches.length}</div><div class="sl">Matches</div></div>
+      </div>
+    </div>`;
+  }).join('') || '<div style="text-align:center;padding:40px;color:var(--muted)">No players found</div>';
+}
 
-def get_all_stats():
-    return HISTORICAL_STATS + NEW_MATCH_STATS
+function openPlayerModal(name) {
+  const p = playersData.find(p => p.name === name);
+  if (!p) return;
+  let ownerInfo = null;
+  for (const [owner, players] of Object.entries(teamsData)) {
+    const found = players.find(tp => tp.name === name);
+    if (found) { ownerInfo = { owner, cvc: found.cvc }; break; }
+  }
+  document.getElementById('modal-content').innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <div class="player-role-dot ${roleDot(p.role)}" style="width:12px;height:12px;flex-shrink:0"></div>
+      <div>
+        <div class="modal-player-name">${name}</div>
+        <div style="font-size:12px;color:var(--muted);font-family:'DM Mono'">${p.role}${ownerInfo?` · ${ownerInfo.owner}${ownerInfo.cvc?' ('+ownerInfo.cvc+')':''}`:' · Unowned'}</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
+      <div class="team-stat"><div class="val">${p.total_pts}</div><div class="lbl">Total Pts</div></div>
+      <div class="team-stat"><div class="val">${p.total_runs}</div><div class="lbl">Runs</div></div>
+      <div class="team-stat"><div class="val">${p.total_wkts}</div><div class="lbl">Wickets</div></div>
+    </div>
+    <div style="font-family:'DM Mono';font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Match Breakdown</div>
+    ${p.matches.map(m => {
+      const cls = m.pts > 50 ? 'pts-good' : m.pts < 0 ? 'pts-bad' : 'pts-mid';
+      return `<div class="modal-match-row">
+        <span class="modal-match-name">${m.match}</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          ${m.mom?'<span style="font-size:11px">⭐ MOM</span>':''}
+          <span style="font-size:11px;color:var(--muted);font-family:\'DM Mono\'">${m.runs}r ${m.wkts}w</span>
+          <span class="modal-match-pts ${cls}">${m.pts>0?'+':''}${m.pts}</span>
+        </div>
+      </div>`;
+    }).join('')}`;
+  document.getElementById('modal').classList.add('open');
+}
 
+function closeModal(e) { if (e.target.id === 'modal') document.getElementById('modal').classList.remove('open'); }
 
-def get_player_role(player_name):
-    """Look up role from team data."""
-    for team in TEAMS.values():
-        for p in team["players"]:
-            if p["name"] == player_name:
-                return p["role"]
-    return "Batsman"
+function showTab(tab) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`tab-${tab}`).classList.add('active');
+  document.querySelector(`[onclick="showTab('${tab}')"]`).classList.add('active');
+  if (tab === 'banter') loadBanter();
+}
 
+// ---- BANTER ----
+const banterCache = {};
 
-def get_leaderboard():
-    all_stats = get_all_stats()
-    matches_played = sorted(list(set(s["match"] for s in all_stats)))
+async function loadBanter() {
+  const container = document.getElementById('banter-list');
+  if (!matchesList.length) {
+    container.innerHTML = '<div class="banter-empty">🏏 No matches yet — upload some scorecards first!</div>';
+    return;
+  }
 
-    # Build per-owner per-match totals
-    owner_match_pts = {owner: {} for owner in TEAMS}
+  container.innerHTML = '<div class="banter-loading">🔥 Generating banter...</div>';
 
-    for stat in all_stats:
-        player_name = stat["player"]
-        match = stat["match"]
-        raw_pts = stat["pts"]
+  const cards = [];
+  for (const match of [...matchesList].reverse()) {
+    if (banterCache[match]) {
+      cards.push(renderBanterCard(match, banterCache[match]));
+      continue;
+    }
 
-        for owner, team in TEAMS.items():
-            for p in team["players"]:
-                if p["name"] == player_name:
-                    mult = 2 if p["cvc"] == "C" else 1.5 if p["cvc"] == "VC" else 1
-                    if match not in owner_match_pts[owner]:
-                        owner_match_pts[owner][match] = 0
-                    owner_match_pts[owner][match] += raw_pts * mult
+    // Get match stats for this match
+    const matchStats = playersData
+      .flatMap(p => p.matches.filter(m => m.match === match).map(m => ({ ...m, player: p.name, role: p.role })))
+      .sort((a, b) => b.pts - a.pts);
 
-    # Apply C/VC penalties
-    for change in CVC_CHANGES:
-        owner = change["team"]
-        if owner in owner_match_pts:
-            penalty = -150 if change["type"] == "C" else -75
-            if "__penalties__" not in owner_match_pts[owner]:
-                owner_match_pts[owner]["__penalties__"] = 0
-            owner_match_pts[owner]["__penalties__"] += penalty
+    if (!matchStats.length) continue;
 
-    result = []
-    for owner in TEAMS:
-        match_pts = owner_match_pts[owner]
-        penalty = match_pts.pop("__penalties__", 0)
-        total = sum(match_pts.values()) + penalty
-        result.append({
-            "name": owner,
-            "total": round(total, 1),
-            "penalty": round(penalty, 1),
-            "match_pts": {m: round(match_pts.get(m, 0), 1) for m in matches_played}
-        })
+    // Build owner points for this match
+    const ownerPts = {};
+    lbData.forEach(t => { ownerPts[t.name] = t.match_pts[match] || 0; });
+    const sortedOwners = Object.entries(ownerPts).sort((a,b) => b[1] - a[1]);
 
-    result.sort(key=lambda x: x["total"], reverse=True)
-    for i, r in enumerate(result):
-        r["rank"] = i + 1
+    const prompt = buildBanterPrompt(match, matchStats, sortedOwners);
 
-    return result, matches_played
+    try {
+      const res = await fetch('/api/generate-banter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ match, prompt })
+      });
+      const data = await res.json();
+      if (data.banter) {
+        banterCache[match] = data.banter;
+        cards.push(renderBanterCard(match, data.banter));
+      }
+    } catch(e) {
+      cards.push(renderBanterCard(match, "Couldn't generate banter for this match. The cricket was probably too boring anyway 😴"));
+    }
+  }
 
+  container.innerHTML = cards.join('') || '<div class="banter-empty">Nothing to roast yet!</div>';
+}
 
-# ─── API ENDPOINTS ────────────────────────────────────────────────────────────
+function buildBanterPrompt(match, stats, ownerPts) {
+  const top3 = stats.slice(0, 3).map(s => `${s.player} (${s.pts} pts)`).join(', ');
+  const bottom3 = stats.slice(-3).map(s => `${s.player} (${s.pts} pts)`).join(', ');
+  const topOwner = ownerPts[0];
+  const bottomOwner = ownerPts[ownerPts.length - 1];
 
-@app.route("/")
-def index():
-    return render_template("index.html")
+  return `You are the funny, light-hearted commentator for a fantasy cricket league called "Yeh Main Kar Leta Hu" — a private league between friends. Write a short, fun match report (4-6 sentences max) for the match: ${match}.
 
-@app.route("/admin")
-def admin():
-    return render_template("admin.html")
+Top fantasy performers: ${top3}
+Worst fantasy performers: ${bottom3}
+Best fantasy team owner this match: ${topOwner[0]} (${topOwner[1]} pts)
+Worst fantasy team owner this match: ${bottomOwner[0]} (${bottomOwner[1]} pts)
 
-@app.route("/api/leaderboard")
-def api_leaderboard():
-    lb, matches = get_leaderboard()
-    return jsonify({"leaderboard": lb, "matches": matches, "cvc_changes": CVC_CHANGES})
+Keep it light-hearted, funny, and friendly. Use cricket banter, gentle roasts, and emojis. Don't be mean. Make it feel like friends taking the mickey out of each other. Keep it short and punchy.`;
+}
 
-@app.route("/api/teams")
-def api_teams():
-    all_stats = get_all_stats()
-    player_totals = {}
-    for stat in all_stats:
-        name = stat["player"]
-        if name not in player_totals:
-            player_totals[name] = {"name": name, "role": stat["role"], "total_pts": 0, "total_runs": 0, "total_wkts": 0, "matches": []}
-        player_totals[name]["total_pts"] += stat["pts"]
-        player_totals[name]["total_runs"] += stat.get("runs", 0)
-        player_totals[name]["total_wkts"] += stat.get("wickets", 0)
-        player_totals[name]["matches"].append({"match": stat["match"], "pts": stat["pts"], "runs": stat.get("runs", 0), "wkts": stat.get("wickets", 0), "mom": stat.get("mom", 0)})
+function renderBanterCard(match, text) {
+  return `<div class="banter-card">
+    <div class="banter-match">🏏 ${match}</div>
+    <div class="banter-text">${text}</div>
+  </div>`;
+}
 
-    teams_out = {}
-    for owner, team in TEAMS.items():
-        players_out = []
-        for p in team["players"]:
-            name = p["name"]
-            pt = player_totals.get(name, {"total_pts": 0, "total_runs": 0, "total_wkts": 0, "matches": []})
-            mult = 2 if p["cvc"] == "C" else 1.5 if p["cvc"] == "VC" else 1
-            players_out.append({
-                "name": name,
-                "role": p["role"],
-                "ipl": p["ipl"],
-                "cvc": p["cvc"],
-                "raw_pts": round(pt["total_pts"], 1),
-                "display_pts": round(pt["total_pts"] * mult, 1),
-                "total_runs": pt["total_runs"],
-                "total_wkts": pt["total_wkts"],
-                "matches": pt["matches"],
-            })
-        teams_out[owner] = sorted(players_out, key=lambda x: x["display_pts"], reverse=True)
-
-    return jsonify({"teams": teams_out})
-
-@app.route("/api/players")
-def api_players():
-    all_stats = get_all_stats()
-    player_totals = {}
-    for stat in all_stats:
-        name = stat["player"]
-        if name not in player_totals:
-            player_totals[name] = {"name": name, "role": stat["role"], "total_pts": 0, "total_runs": 0, "total_wkts": 0, "matches": []}
-        player_totals[name]["total_pts"] += stat["pts"]
-        player_totals[name]["total_runs"] += stat.get("runs", 0)
-        player_totals[name]["total_wkts"] += stat.get("wickets", 0)
-        player_totals[name]["matches"].append({"match": stat["match"], "pts": stat["pts"], "runs": stat.get("runs", 0), "wkts": stat.get("wickets", 0), "mom": stat.get("mom", 0)})
-
-    players = sorted(player_totals.values(), key=lambda x: x["total_pts"], reverse=True)
-    for p in players:
-        p["total_pts"] = round(p["total_pts"], 1)
-    return jsonify({"players": players})
-
-@app.route("/api/upload-scorecard", methods=["POST"])
-def upload_scorecard():
-    admin_key = request.headers.get("X-Admin-Key", "")
-    if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
-        return jsonify({"error": "Unauthorized"}), 401
-
-    if "image" not in request.files:
-        return jsonify({"error": "No image provided"}), 400
-
-    match_name = request.form.get("match_name", "").strip()
-    if not match_name:
-        return jsonify({"error": "Match name required"}), 400
-
-    mom_player = request.form.get("mom_player", "").strip().lower()
-
-    image_file = request.files["image"]
-    image_data = base64.standard_b64encode(image_file.read()).decode("utf-8")
-    media_type = image_file.content_type or "image/png"
-
-    # Build known players list for context
-    all_players = []
-    for team in TEAMS.values():
-        for p in team["players"]:
-            all_players.append(f"{p['name']} ({p['role']})")
-    players_context = "\n".join(all_players)
-
-    prompt = f"""You are reading an IPL cricket scorecard image. Extract ALL player statistics visible.
-
-Known fantasy league players (for name matching):
-{players_context}
-
-For each player you can see in the scorecard, return a JSON array with this exact structure:
-[
-  {{
-    "player": "exact player name",
-    "role": "Batsman" or "Bowler" or "All-rounder",
-    "runs": number,
-    "fours": number,
-    "sixes": number,
-    "wickets": number,
-    "catches": number,
-    "stumpings": number,
-    "maidens": number,
-    "dismissal": "Out" or "Not Out" or "DNB",
-    "mom": 0 or 1,
-    "hattrick": 0 or 1
-  }}
-]
-
-Rules:
-- dismissal = "DNB" if the player did not bat (bowlers who didn't bat)
-- dismissal = "Not Out" if the player was not out
-- dismissal = "Out" if the player was dismissed
-- catches includes catches taken in the field (look at dismissal descriptions like "c PlayerName b Bowler")
-- mom = 1 only for the Man of the Match
-- Return ONLY the JSON array, no other text
-
-Scorecard image is attached."""
-
-    try:
-        response = client.messages.create(
-            model="claude-opus-4-5",
-            max_tokens=2000,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": image_data}},
-                    {"type": "text", "text": prompt}
-                ]
-            }]
-        )
-
-        raw = response.content[0].text.strip()
-        # Strip markdown code fences if present
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-        raw = raw.strip()
-
-        players_data = json.loads(raw)
-
-        # Calculate points and add match name
-        new_entries = []
-        for p in players_data:
-            role = p.get("role") or get_player_role(p["player"])
-            p["role"] = role
-            # Override MOM from admin field if provided
-            if mom_player and p["player"].lower() == mom_player:
-                p["mom"] = 1
-            pts = calculate_points(p)
-            entry = {
-                "match": match_name,
-                "player": p["player"],
-                "role": role,
-                "runs": p.get("runs", 0),
-                "fours": p.get("fours", 0),
-                "sixes": p.get("sixes", 0),
-                "wickets": p.get("wickets", 0),
-                "catches": p.get("catches", 0),
-                "stumpings": p.get("stumpings", 0),
-                "maidens": p.get("maidens", 0),
-                "dismissal": p.get("dismissal", "DNB"),
-                "mom": p.get("mom", 0),
-                "hattrick": p.get("hattrick", 0),
-                "pts": pts,
-            }
-            new_entries.append(entry)
-
-        NEW_MATCH_STATS.extend(new_entries)
-
-        return jsonify({
-            "success": True,
-            "match": match_name,
-            "players_processed": len(new_entries),
-            "entries": new_entries
-        })
-
-    except json.JSONDecodeError as e:
-        return jsonify({"error": f"Could not parse scorecard data: {str(e)}", "raw": raw}), 500
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/cvc-change", methods=["POST"])
-def api_cvc_change():
-    admin_key = request.headers.get("X-Admin-Key", "")
-    if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
-        return jsonify({"error": "Unauthorized"}), 401
-
-    data = request.get_json()
-    team = data.get("team", "").strip()
-    change_type = data.get("type", "").strip()
-    from_player = data.get("from", "").strip()
-    to_player = data.get("to", "").strip()
-    date = data.get("date", "").strip()
-
-    if not all([team, change_type, from_player, to_player, date]):
-        return jsonify({"error": "All fields required"}), 400
-
-    if team not in TEAMS:
-        return jsonify({"error": "Unknown team"}), 400
-
-    CVC_CHANGES.append({
-        "team": team,
-        "type": change_type,
-        "from": from_player,
-        "to": to_player,
-        "date": date,
-        "penalty": -150 if change_type == "C" else -75
-    })
-
-    return jsonify({"success": True})
-
-@app.route("/api/cvc-changes")
-def api_cvc_changes():
-    return jsonify({"changes": CVC_CHANGES})
-
-def api_matches():
-    all_stats = get_all_stats()
-    matches = sorted(list(set(s["match"] for s in all_stats)))
-    return jsonify({"matches": matches})
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=False)
+loadAll();
+</script>
+</body>
+</html>
