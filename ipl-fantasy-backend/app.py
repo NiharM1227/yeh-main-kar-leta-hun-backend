@@ -1,6 +1,8 @@
 import os
 import json
 import base64
+import requests as req
+from bs4 import BeautifulSoup
 import anthropic
 from flask import Flask, request, jsonify, render_template, send_from_directory
 from flask_cors import CORS
@@ -348,6 +350,139 @@ def api_players():
         p["total_pts"] = round(p["total_pts"], 1)
     return jsonify({"players": players})
 
+@app.route("/api/upload-scorecard-url", methods=["POST"])
+def upload_scorecard_url():
+    admin_key = request.headers.get("X-Admin-Key", "")
+    if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.get_json()
+    url = data.get("url", "").strip()
+    match_name = data.get("match_name", "").strip()
+    mom_player = data.get("mom_player", "").strip()
+
+    if not url or not match_name:
+        return jsonify({"error": "URL and match name required"}), 400
+
+    try:
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        response = req.get(url, headers=headers, timeout=15)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+        # Extract plain text — Claude will parse structure from it
+        scorecard_text = soup.get_text(separator="\n", strip=True)
+        # Trim to reasonable size
+        scorecard_text = scorecard_text[:12000]
+    except Exception as e:
+        return jsonify({"error": f"Could not fetch scorecard: {str(e)}"}), 500
+
+    all_players = []
+    for team in TEAMS.values():
+        for p in team["players"]:
+            all_players.append(f"{p['name']} ({p['role']})")
+    players_context = "\n".join(all_players)
+
+    prompt = f"""You are reading an IPL cricket scorecard from ESPNcricinfo. Extract ALL player statistics.
+
+Known fantasy league players (use these for name matching):
+{players_context}
+
+Scorecard text:
+{scorecard_text}
+
+Return a JSON array with one entry per player. Use this exact structure:
+[
+  {{
+    "player": "exact player name as shown",
+    "role": "Batsman" or "Bowler" or "All-rounder",
+    "runs": number,
+    "fours": number,
+    "sixes": number,
+    "wickets": number,
+    "catches": number,
+    "stumpings": number,
+    "maidens": number,
+    "dismissal": "Out" or "Not Out" or "DNB",
+    "mom": 0,
+    "hattrick": 0
+  }}
+]
+
+Rules:
+- Include ALL batsmen and bowlers from BOTH innings
+- dismissal = "DNB" if did not bat
+- dismissal = "Not Out" if not out
+- dismissal = "Out" if dismissed
+- catches = catches taken in the field by this player
+- Return ONLY the JSON array, nothing else"""
+
+    try:
+        ai_response = client.messages.create(
+            model="claude-opus-4-5",
+            max_tokens=3000,
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        raw = ai_response.content[0].text.strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        raw = raw.strip()
+
+        players_data = json.loads(raw)
+        new_entries = process_players(players_data, match_name, mom_player)
+        NEW_MATCH_STATS.extend(new_entries)
+
+        return jsonify({
+            "success": True,
+            "match": match_name,
+            "players_processed": len(new_entries),
+            "entries": new_entries
+        })
+
+    except json.JSONDecodeError as e:
+        return jsonify({"error": f"Could not parse scorecard: {str(e)}"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+def process_players(players_data, match_name, mom_player):
+    """Shared logic for processing player data from any source."""
+    new_entries = []
+    mom_applied = False
+    for p in players_data:
+        role = p.get("role") or get_player_role(p["player"])
+        p["role"] = role
+        pts = calculate_points(p)
+        if mom_player and not mom_applied:
+            player_clean = p["player"].strip().lower().replace(".", "").replace(" ", "")
+            mom_clean = mom_player.strip().lower().replace(".", "").replace(" ", "")
+            if mom_clean in player_clean or player_clean in mom_clean:
+                if not p.get("mom", 0):
+                    pts += 10
+                p["mom"] = 1
+                mom_applied = True
+        entry = {
+            "match": match_name,
+            "player": p["player"],
+            "role": role,
+            "runs": p.get("runs", 0),
+            "fours": p.get("fours", 0),
+            "sixes": p.get("sixes", 0),
+            "wickets": p.get("wickets", 0),
+            "catches": p.get("catches", 0),
+            "stumpings": p.get("stumpings", 0),
+            "maidens": p.get("maidens", 0),
+            "dismissal": p.get("dismissal", "DNB"),
+            "mom": p.get("mom", 0),
+            "hattrick": p.get("hattrick", 0),
+            "pts": pts,
+        }
+        new_entries.append(entry)
+    return new_entries
+
+
 @app.route("/api/upload-scorecard", methods=["POST"])
 def upload_scorecard():
     admin_key = request.headers.get("X-Admin-Key", "")
@@ -429,42 +564,7 @@ Scorecard image is attached."""
         raw = raw.strip()
 
         players_data = json.loads(raw)
-
-        # Calculate points and add match name
-        new_entries = []
-        mom_applied = False
-        for p in players_data:
-            role = p.get("role") or get_player_role(p["player"])
-            p["role"] = role
-            pts = calculate_points(p)
-            # Apply MOM bonus from admin field after calculation
-            # Only add if not already counted by AI
-            if mom_player and not mom_applied:
-                player_name_clean = p["player"].strip().lower().replace(".", "").replace(" ", "")
-                mom_clean = mom_player.strip().lower().replace(".", "").replace(" ", "")
-                if mom_clean in player_name_clean or player_name_clean in mom_clean:
-                    if not p.get("mom", 0):  # only add if AI didn't already give MOM
-                        pts += 10
-                    p["mom"] = 1
-                    mom_applied = True
-            entry = {
-                "match": match_name,
-                "player": p["player"],
-                "role": role,
-                "runs": p.get("runs", 0),
-                "fours": p.get("fours", 0),
-                "sixes": p.get("sixes", 0),
-                "wickets": p.get("wickets", 0),
-                "catches": p.get("catches", 0),
-                "stumpings": p.get("stumpings", 0),
-                "maidens": p.get("maidens", 0),
-                "dismissal": p.get("dismissal", "DNB"),
-                "mom": p.get("mom", 0),
-                "hattrick": p.get("hattrick", 0),
-                "pts": pts,
-            }
-            new_entries.append(entry)
-
+        new_entries = process_players(players_data, match_name, mom_player)
         NEW_MATCH_STATS.extend(new_entries)
 
         return jsonify({
