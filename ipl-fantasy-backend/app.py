@@ -1,0 +1,541 @@
+import os
+import json
+import base64
+import anthropic
+from flask import Flask, request, jsonify, render_template, send_from_directory
+from flask_cors import CORS
+
+app = Flask(__name__)
+CORS(app)
+
+client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+
+# ─── TEAM DATA ────────────────────────────────────────────────────────────────
+
+TEAMS = {
+    "Vijay": {"players": [
+        {"name":"Virat Kohli","role":"Batsman","ipl":"RCB","cvc":"C"},
+        {"name":"Sanju Samson","role":"Batsman","ipl":"CSK","cvc":"VC"},
+        {"name":"Sai Sudharsan","role":"Batsman","ipl":"GT","cvc":None},
+        {"name":"Ravindra Jadeja","role":"All-rounder","ipl":"RR","cvc":None},
+        {"name":"Arshdeep Singh","role":"Bowler","ipl":"PK","cvc":None},
+        {"name":"Yuzvendra Chahal","role":"Bowler","ipl":"PK","cvc":None},
+        {"name":"Harpreet Brar","role":"Bowler","ipl":"PK","cvc":None},
+        {"name":"Jasprit Bumrah","role":"Bowler","ipl":"MI","cvc":None},
+        {"name":"Rachin Ravindra","role":"All-rounder","ipl":"KKR","cvc":None},
+        {"name":"Finn Allen","role":"Batsman","ipl":"KKR","cvc":None},
+        {"name":"Dewald Brewis","role":"Bowler","ipl":"CSK","cvc":None},
+        {"name":"Deepak Chahar","role":"Bowler","ipl":"MI","cvc":None},
+        {"name":"Tim David","role":"All-rounder","ipl":"RCB","cvc":None},
+    ]},
+    "Yash Shah": {"players": [
+        {"name":"Abhishek Sharma","role":"All-rounder","ipl":"SRH","cvc":"C"},
+        {"name":"Heinrich Klaasen","role":"Batsman","ipl":"SRH","cvc":"VC"},
+        {"name":"Prabhsimran Singh","role":"Batsman","ipl":"PK","cvc":None},
+        {"name":"Washington Sundar","role":"All-rounder","ipl":"GT","cvc":None},
+        {"name":"Sunil Narine","role":"All-rounder","ipl":"KKR","cvc":None},
+        {"name":"Jitesh Sharma","role":"Batsman","ipl":"RCB","cvc":None},
+        {"name":"Shashank Singh","role":"All-rounder","ipl":"PK","cvc":None},
+        {"name":"Nitish Kumar Reddy","role":"All-rounder","ipl":"SRH","cvc":None},
+        {"name":"Rinku Singh","role":"Batsman","ipl":"KKR","cvc":None},
+        {"name":"Angkrish Raghuvanshi","role":"Batsman","ipl":"KKR","cvc":None},
+        {"name":"Azmatullah Omarzai","role":"All-rounder","ipl":"PK","cvc":None},
+        {"name":"Devdutt Padikkal","role":"Batsman","ipl":"RCB","cvc":None},
+        {"name":"Tushar Deshpande","role":"Bowler","ipl":"RR","cvc":None},
+    ]},
+    "Samay Maru": {"players": [
+        {"name":"Shubman Gill","role":"Batsman","ipl":"GT","cvc":"C"},
+        {"name":"Mitchell Marsh","role":"All-rounder","ipl":"LSG","cvc":"VC"},
+        {"name":"Ruturaj Gaikwad","role":"Batsman","ipl":"CSK","cvc":None},
+        {"name":"Krunal Pandya","role":"All-rounder","ipl":"RCB","cvc":None},
+        {"name":"Ayush Mhatre","role":"Batsman","ipl":"CSK","cvc":None},
+        {"name":"Jason Holder","role":"All-rounder","ipl":"GT","cvc":None},
+        {"name":"Khaleel Ahmed","role":"Bowler","ipl":"CSK","cvc":None},
+        {"name":"Bhuvneshwar Kumar","role":"Bowler","ipl":"RCB","cvc":None},
+        {"name":"David Miller","role":"Batsman","ipl":"DC","cvc":None},
+        {"name":"Riyan Parag","role":"All-rounder","ipl":"RR","cvc":None},
+        {"name":"Marco Jansen","role":"All-rounder","ipl":"PK","cvc":None},
+        {"name":"Nehal Wadhera","role":"Batsman","ipl":"PK","cvc":None},
+        {"name":"Sherfane Rutherford","role":"All-rounder","ipl":"MI","cvc":None},
+    ]},
+    "Harsh Gupta": {"players": [
+        {"name":"Rohit Sharma","role":"Batsman","ipl":"MI","cvc":"C"},
+        {"name":"Ishan Kishan","role":"Batsman","ipl":"SRH","cvc":"VC"},
+        {"name":"Travis Head","role":"Batsman","ipl":"SRH","cvc":None},
+        {"name":"Rishabh Pant","role":"Batsman","ipl":"LSG","cvc":None},
+        {"name":"Mohammed Siraj","role":"Bowler","ipl":"GT","cvc":None},
+        {"name":"Pat Cummins","role":"Bowler","ipl":"SRH","cvc":None},
+        {"name":"Dhruv Jurel","role":"Batsman","ipl":"RR","cvc":None},
+        {"name":"Jacob Bethell","role":"All-rounder","ipl":"RCB","cvc":None},
+        {"name":"Harshal Patel","role":"Bowler","ipl":"RCB","cvc":None},
+        {"name":"Marcus Stoinis","role":"All-rounder","ipl":"PK","cvc":None},
+        {"name":"Naman Dhir","role":"Batsman","ipl":"MI","cvc":None},
+        {"name":"Shardul Thakur","role":"All-rounder","ipl":"MI","cvc":None},
+        {"name":"Anrich Nortje","role":"Bowler","ipl":"LSG","cvc":None},
+    ]},
+    "Vikram Jumani": {"players": [
+        {"name":"Yashasvi Jaiswal","role":"Batsman","ipl":"RR","cvc":"C"},
+        {"name":"Nicholas Pooran","role":"Batsman","ipl":"LSG","cvc":"VC"},
+        {"name":"Shreyas Iyer","role":"Batsman","ipl":"PK","cvc":None},
+        {"name":"Priyansh Arya","role":"Batsman","ipl":"PK","cvc":None},
+        {"name":"Shimron Hetmyer","role":"Batsman","ipl":"RR","cvc":None},
+        {"name":"Ravi Bishnoi","role":"Bowler","ipl":"RR","cvc":None},
+        {"name":"Pathum Nissanka","role":"Batsman","ipl":"DC","cvc":None},
+        {"name":"Tristan Stubbs","role":"Batsman","ipl":"DC","cvc":None},
+        {"name":"Mitchell Starc","role":"Bowler","ipl":"DC","cvc":None},
+        {"name":"Suyash Sharma","role":"Bowler","ipl":"RCB","cvc":None},
+        {"name":"Josh Inglis","role":"Batsman","ipl":"LSG","cvc":None},
+        {"name":"Jofra Archer","role":"Bowler","ipl":"RR","cvc":None},
+        {"name":"Prashant Veer","role":"Bowler","ipl":"CSK","cvc":None},
+    ]},
+    "Rishub Bubna": {"players": [
+        {"name":"Hardik Pandya","role":"All-rounder","ipl":"MI","cvc":"C"},
+        {"name":"Axar Patel","role":"All-rounder","ipl":"DC","cvc":"VC"},
+        {"name":"Tilak Varma","role":"Batsman","ipl":"MI","cvc":None},
+        {"name":"Kuldeep Yadav","role":"Bowler","ipl":"DC","cvc":None},
+        {"name":"Cameron Green","role":"All-rounder","ipl":"KKR","cvc":None},
+        {"name":"Rajat Patidar","role":"Batsman","ipl":"RCB","cvc":None},
+        {"name":"Glenn Phillips","role":"All-rounder","ipl":"GT","cvc":None},
+        {"name":"Mitchell Santner","role":"All-rounder","ipl":"MI","cvc":None},
+        {"name":"Vaibhav Arora","role":"Bowler","ipl":"KKR","cvc":None},
+        {"name":"Avesh Khan","role":"Bowler","ipl":"LSG","cvc":None},
+        {"name":"Ryan Rickelton","role":"Batsman","ipl":"MI","cvc":None},
+        {"name":"Quinton de Kock","role":"Batsman","ipl":"MI","cvc":None},
+        {"name":"Rahul Tewatia","role":"All-rounder","ipl":"GT","cvc":None},
+    ]},
+    "Nihar Mehta": {"players": [
+        {"name":"KL Rahul","role":"Batsman","ipl":"DC","cvc":"C"},
+        {"name":"Aiden Markram","role":"All-rounder","ipl":"LSG","cvc":"VC"},
+        {"name":"Vaibhav Suryavanshi","role":"Batsman","ipl":"RR","cvc":None},
+        {"name":"Shivam Dube","role":"All-rounder","ipl":"CSK","cvc":None},
+        {"name":"Ajinkya Rahane","role":"Batsman","ipl":"KKR","cvc":None},
+        {"name":"Sarfaraz Khan","role":"Batsman","ipl":"CSK","cvc":None},
+        {"name":"Sai Kishore","role":"Bowler","ipl":"GT","cvc":None},
+        {"name":"Liam Livingstone","role":"All-rounder","ipl":"SRH","cvc":None},
+        {"name":"Jacob Duffy","role":"Bowler","ipl":"RCB","cvc":None},
+        {"name":"Digvesh Rathi","role":"Bowler","ipl":"LSG","cvc":None},
+        {"name":"Prithvi Shaw","role":"Batsman","ipl":"DC","cvc":None},
+        {"name":"Tim Seifert","role":"Batsman","ipl":"KKR","cvc":None},
+        {"name":"Vignesh Puthur","role":"Bowler","ipl":"RR","cvc":None},
+    ]},
+    "Qais / Vaishali": {"players": [
+        {"name":"Suryakumar Yadav","role":"Batsman","ipl":"MI","cvc":"C"},
+        {"name":"Varun Chakravarthy","role":"Bowler","ipl":"KKR","cvc":"VC"},
+        {"name":"Jos Buttler","role":"Batsman","ipl":"GT","cvc":None},
+        {"name":"Phil Salt","role":"Batsman","ipl":"RCB","cvc":None},
+        {"name":"Trent Boult","role":"Bowler","ipl":"MI","cvc":None},
+        {"name":"Rashid Khan","role":"Bowler","ipl":"GT","cvc":None},
+        {"name":"Will Jacks","role":"All-rounder","ipl":"MI","cvc":None},
+        {"name":"Mohammad Shami","role":"Bowler","ipl":"LSG","cvc":None},
+        {"name":"Rahul Tripathi","role":"Batsman","ipl":"KKR","cvc":None},
+        {"name":"Noor Ahmad","role":"Bowler","ipl":"CSK","cvc":None},
+        {"name":"Venkatesh Iyer","role":"All-rounder","ipl":"RCB","cvc":None},
+        {"name":"Abhishek Porel","role":"Batsman","ipl":"DC","cvc":None},
+        {"name":"Vyshak Vijaykumar","role":"Bowler","ipl":"PK","cvc":None},
+    ]},
+}
+
+# ─── HISTORICAL MATCH DATA (Matches 1-6) ──────────────────────────────────────
+
+HISTORICAL_STATS = [
+    {"match":"RCB vs SRH","player":"Abhishek Sharma","role":"All-rounder","runs":7,"fours":1,"sixes":0,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":8},
+    {"match":"RCB vs SRH","player":"Travis Head","role":"Batsman","runs":11,"fours":1,"sixes":1,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":14},
+    {"match":"RCB vs SRH","player":"Ishan Kishan","role":"Batsman","runs":80,"fours":7,"sixes":3,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":113},
+    {"match":"RCB vs SRH","player":"Heinrich Klaasen","role":"Batsman","runs":31,"fours":4,"sixes":2,"wickets":0,"catches":2,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":50},
+    {"match":"RCB vs SRH","player":"Nitish Kumar Reddy","role":"All-rounder","runs":1,"fours":0,"sixes":0,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":1},
+    {"match":"RCB vs SRH","player":"Aniket Verma","role":"Batsman","runs":43,"fours":2,"sixes":4,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":58},
+    {"match":"RCB vs SRH","player":"Harshal Patel","role":"Bowler","runs":0,"fours":0,"sixes":0,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":-2},
+    {"match":"RCB vs SRH","player":"Phil Salt","role":"Batsman","runs":8,"fours":0,"sixes":0,"wickets":0,"catches":2,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":14},
+    {"match":"RCB vs SRH","player":"Virat Kohli","role":"Batsman","runs":69,"fours":8,"sixes":5,"wickets":0,"catches":1,"stumpings":0,"maidens":0,"dismissal":"Not Out","mom":0,"hattrick":0,"pts":106},
+    {"match":"RCB vs SRH","player":"Devdutt Padikkal","role":"Batsman","runs":61,"fours":3,"sixes":7,"wickets":0,"catches":3,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":97},
+    {"match":"RCB vs SRH","player":"Rajat Patidar","role":"Batsman","runs":31,"fours":1,"sixes":2,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":41},
+    {"match":"RCB vs SRH","player":"Jitesh Sharma","role":"Batsman","runs":0,"fours":0,"sixes":0,"wickets":0,"catches":1,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":-3},
+    {"match":"RCB vs SRH","player":"Tim David","role":"All-rounder","runs":16,"fours":1,"sixes":1,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Not Out","mom":0,"hattrick":0,"pts":23},
+    {"match":"RCB vs SRH","player":"Jacob Duffy","role":"Bowler","runs":0,"fours":0,"sixes":0,"wickets":3,"catches":0,"stumpings":0,"maidens":0,"dismissal":"DNB","mom":1,"hattrick":0,"pts":95},
+    {"match":"RCB vs SRH","player":"Romario Shepherd","role":"All-rounder","runs":0,"fours":0,"sixes":0,"wickets":3,"catches":0,"stumpings":0,"maidens":0,"dismissal":"DNB","mom":0,"hattrick":0,"pts":85},
+    {"match":"RCB vs SRH","player":"Bhuvneshwar Kumar","role":"Bowler","runs":0,"fours":0,"sixes":0,"wickets":1,"catches":1,"stumpings":0,"maidens":0,"dismissal":"DNB","mom":0,"hattrick":0,"pts":28},
+    {"match":"RCB vs SRH","player":"Krunal Pandya","role":"All-rounder","runs":0,"fours":0,"sixes":0,"wickets":0,"catches":1,"stumpings":0,"maidens":0,"dismissal":"DNB","mom":0,"hattrick":0,"pts":3},
+    {"match":"RCB vs SRH","player":"Suyash Sharma","role":"Bowler","runs":0,"fours":0,"sixes":0,"wickets":1,"catches":0,"stumpings":0,"maidens":0,"dismissal":"DNB","mom":0,"hattrick":0,"pts":25},
+    {"match":"MI vs KKR","player":"Finn Allen","role":"Batsman","runs":37,"fours":2,"sixes":6,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":56},
+    {"match":"MI vs KKR","player":"Ajinkya Rahane","role":"Batsman","runs":67,"fours":3,"sixes":5,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":90},
+    {"match":"MI vs KKR","player":"Cameron Green","role":"All-rounder","runs":18,"fours":1,"sixes":1,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":21},
+    {"match":"MI vs KKR","player":"Angkrish Raghuvanshi","role":"Batsman","runs":51,"fours":5,"sixes":0,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":66},
+    {"match":"MI vs KKR","player":"Rinku Singh","role":"Batsman","runs":33,"fours":4,"sixes":0,"wickets":0,"catches":1,"stumpings":0,"maidens":0,"dismissal":"Not Out","mom":0,"hattrick":0,"pts":51},
+    {"match":"MI vs KKR","player":"Hardik Pandya","role":"All-rounder","runs":21,"fours":1,"sixes":1,"wickets":2,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":80},
+    {"match":"MI vs KKR","player":"Tilak Varma","role":"Batsman","runs":85,"fours":6,"sixes":4,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":1,"hattrick":0,"pts":130},
+    {"match":"MI vs KKR","player":"Rohit Sharma","role":"Batsman","runs":17,"fours":1,"sixes":1,"wickets":0,"catches":2,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":27},
+    {"match":"MI vs KKR","player":"Sunil Narine","role":"All-rounder","runs":57,"fours":6,"sixes":5,"wickets":1,"catches":1,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":109},
+    {"match":"MI vs KKR","player":"Ishan Kishan","role":"Batsman","runs":0,"fours":0,"sixes":0,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":-6},
+    {"match":"RR vs CSK","player":"Yashasvi Jaiswal","role":"Batsman","runs":13,"fours":0,"sixes":2,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":17},
+    {"match":"RR vs CSK","player":"Dhruv Jurel","role":"Batsman","runs":81,"fours":8,"sixes":3,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Not Out","mom":0,"hattrick":0,"pts":118},
+    {"match":"RR vs CSK","player":"Shimron Hetmyer","role":"Batsman","runs":0,"fours":0,"sixes":0,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":-6},
+    {"match":"RR vs CSK","player":"Riyan Parag","role":"All-rounder","runs":3,"fours":0,"sixes":0,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":3},
+    {"match":"RR vs CSK","player":"Ravindra Jadeja","role":"All-rounder","runs":24,"fours":1,"sixes":0,"wickets":1,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Not Out","mom":0,"hattrick":0,"pts":53},
+    {"match":"RR vs CSK","player":"Jofra Archer","role":"Bowler","runs":0,"fours":0,"sixes":0,"wickets":2,"catches":0,"stumpings":0,"maidens":0,"dismissal":"DNB","mom":0,"hattrick":0,"pts":55},
+    {"match":"RR vs CSK","player":"Ravi Bishnoi","role":"Bowler","runs":0,"fours":0,"sixes":0,"wickets":2,"catches":0,"stumpings":0,"maidens":0,"dismissal":"DNB","mom":0,"hattrick":0,"pts":55},
+    {"match":"RR vs CSK","player":"Ruturaj Gaikwad","role":"Batsman","runs":7,"fours":0,"sixes":0,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":7},
+    {"match":"RR vs CSK","player":"Sanju Samson","role":"Batsman","runs":7,"fours":0,"sixes":0,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":7},
+    {"match":"RR vs CSK","player":"Ayush Mhatre","role":"Batsman","runs":0,"fours":0,"sixes":0,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":-6},
+    {"match":"RR vs CSK","player":"Sarfaraz Khan","role":"Batsman","runs":24,"fours":3,"sixes":0,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":27},
+    {"match":"RR vs CSK","player":"Shivam Dube","role":"All-rounder","runs":8,"fours":0,"sixes":1,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":10},
+    {"match":"RR vs CSK","player":"Noor Ahmad","role":"Bowler","runs":0,"fours":0,"sixes":0,"wickets":1,"catches":0,"stumpings":0,"maidens":0,"dismissal":"DNB","mom":0,"hattrick":0,"pts":25},
+    {"match":"RR vs CSK","player":"Anshul Kamboj","role":"Bowler","runs":0,"fours":0,"sixes":0,"wickets":3,"catches":0,"stumpings":0,"maidens":0,"dismissal":"DNB","mom":1,"hattrick":0,"pts":95},
+    {"match":"PBKS vs GT","player":"Priyansh Arya","role":"Batsman","runs":62,"fours":5,"sixes":6,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":89},
+    {"match":"PBKS vs GT","player":"Prabhsimran Singh","role":"Batsman","runs":23,"fours":2,"sixes":2,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":33},
+    {"match":"PBKS vs GT","player":"Shreyas Iyer","role":"Batsman","runs":52,"fours":3,"sixes":3,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Not Out","mom":0,"hattrick":0,"pts":75},
+    {"match":"PBKS vs GT","player":"Shashank Singh","role":"All-rounder","runs":44,"fours":3,"sixes":3,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":59},
+    {"match":"PBKS vs GT","player":"Azmatullah Omarzai","role":"All-rounder","runs":11,"fours":0,"sixes":1,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":13},
+    {"match":"PBKS vs GT","player":"Arshdeep Singh","role":"Bowler","runs":0,"fours":0,"sixes":0,"wickets":1,"catches":0,"stumpings":0,"maidens":0,"dismissal":"DNB","mom":0,"hattrick":0,"pts":25},
+    {"match":"PBKS vs GT","player":"Yuzvendra Chahal","role":"Bowler","runs":0,"fours":0,"sixes":0,"wickets":2,"catches":0,"stumpings":0,"maidens":0,"dismissal":"DNB","mom":0,"hattrick":0,"pts":55},
+    {"match":"PBKS vs GT","player":"Jos Buttler","role":"Batsman","runs":79,"fours":8,"sixes":4,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":1,"hattrick":0,"pts":115},
+    {"match":"PBKS vs GT","player":"Shubman Gill","role":"Batsman","runs":30,"fours":3,"sixes":0,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":36},
+    {"match":"PBKS vs GT","player":"Sai Sudharsan","role":"Batsman","runs":34,"fours":3,"sixes":1,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":41},
+    {"match":"PBKS vs GT","player":"Washington Sundar","role":"All-rounder","runs":0,"fours":0,"sixes":0,"wickets":1,"catches":0,"stumpings":0,"maidens":0,"dismissal":"DNB","mom":0,"hattrick":0,"pts":25},
+    {"match":"PBKS vs GT","player":"Rashid Khan","role":"Bowler","runs":0,"fours":0,"sixes":0,"wickets":3,"catches":0,"stumpings":0,"maidens":0,"dismissal":"DNB","mom":0,"hattrick":0,"pts":85},
+    {"match":"PBKS vs GT","player":"Mohammed Siraj","role":"Bowler","runs":0,"fours":0,"sixes":0,"wickets":3,"catches":0,"stumpings":0,"maidens":0,"dismissal":"DNB","mom":0,"hattrick":0,"pts":85},
+    {"match":"LSG vs DC","player":"Nicholas Pooran","role":"Batsman","runs":55,"fours":2,"sixes":5,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Not Out","mom":0,"hattrick":0,"pts":83},
+    {"match":"LSG vs DC","player":"Rishabh Pant","role":"Batsman","runs":11,"fours":0,"sixes":1,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":15},
+    {"match":"LSG vs DC","player":"Mitchell Marsh","role":"All-rounder","runs":36,"fours":3,"sixes":2,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":47},
+    {"match":"LSG vs DC","player":"Axar Patel","role":"All-rounder","runs":33,"fours":2,"sixes":2,"wickets":3,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Not Out","mom":1,"hattrick":0,"pts":127},
+    {"match":"LSG vs DC","player":"Kuldeep Yadav","role":"Bowler","runs":0,"fours":0,"sixes":0,"wickets":2,"catches":0,"stumpings":0,"maidens":0,"dismissal":"DNB","mom":0,"hattrick":0,"pts":55},
+    {"match":"LSG vs DC","player":"KL Rahul","role":"Batsman","runs":0,"fours":0,"sixes":0,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":-6},
+    {"match":"LSG vs DC","player":"Shimron Hetmyer","role":"Batsman","runs":12,"fours":0,"sixes":1,"wickets":0,"catches":1,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":17},
+    {"match":"LSG vs DC","player":"Mitchell Starc","role":"Bowler","runs":0,"fours":0,"sixes":0,"wickets":1,"catches":0,"stumpings":0,"maidens":0,"dismissal":"DNB","mom":0,"hattrick":0,"pts":25},
+    {"match":"LSG vs DC","player":"David Miller","role":"Batsman","runs":0,"fours":0,"sixes":0,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":-6},
+    {"match":"LSG vs DC","player":"Avesh Khan","role":"Bowler","runs":0,"fours":0,"sixes":0,"wickets":2,"catches":0,"stumpings":0,"maidens":0,"dismissal":"DNB","mom":0,"hattrick":0,"pts":55},
+    {"match":"KKR vs SRH","player":"Sunil Narine","role":"All-rounder","runs":71,"fours":8,"sixes":5,"wickets":4,"catches":1,"stumpings":0,"maidens":0,"dismissal":"Out","mom":1,"hattrick":0,"pts":196},
+    {"match":"KKR vs SRH","player":"Rinku Singh","role":"Batsman","runs":37,"fours":2,"sixes":3,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":51},
+    {"match":"KKR vs SRH","player":"Angkrish Raghuvanshi","role":"Batsman","runs":47,"fours":5,"sixes":2,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":64},
+    {"match":"KKR vs SRH","player":"Vaibhav Arora","role":"Bowler","runs":0,"fours":0,"sixes":0,"wickets":3,"catches":0,"stumpings":0,"maidens":0,"dismissal":"DNB","mom":0,"hattrick":0,"pts":85},
+    {"match":"KKR vs SRH","player":"Travis Head","role":"Batsman","runs":13,"fours":1,"sixes":1,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":17},
+    {"match":"KKR vs SRH","player":"Abhishek Sharma","role":"All-rounder","runs":3,"fours":0,"sixes":0,"wickets":0,"catches":1,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":6},
+    {"match":"KKR vs SRH","player":"Heinrich Klaasen","role":"Batsman","runs":21,"fours":2,"sixes":2,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":33},
+    {"match":"KKR vs SRH","player":"Pat Cummins","role":"Bowler","runs":0,"fours":0,"sixes":0,"wickets":2,"catches":0,"stumpings":0,"maidens":0,"dismissal":"DNB","mom":0,"hattrick":0,"pts":55},
+    {"match":"KKR vs SRH","player":"Ishan Kishan","role":"Batsman","runs":40,"fours":2,"sixes":4,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":57},
+    {"match":"KKR vs SRH","player":"Cameron Green","role":"All-rounder","runs":23,"fours":2,"sixes":2,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":33},
+    {"match":"KKR vs SRH","player":"Tilak Varma","role":"Batsman","runs":0,"fours":0,"sixes":0,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":-6},
+    {"match":"KKR vs SRH","player":"Hardik Pandya","role":"All-rounder","runs":0,"fours":0,"sixes":0,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"DNB","mom":0,"hattrick":0,"pts":0},
+]
+
+# Runtime storage for new matches (resets on restart — fine for now)
+NEW_MATCH_STATS = []
+
+# ─── SCORING LOGIC ────────────────────────────────────────────────────────────
+
+def calculate_points(player_data):
+    """Calculate fantasy points for a player's match performance."""
+    runs = player_data.get("runs", 0)
+    fours = player_data.get("fours", 0)
+    sixes = player_data.get("sixes", 0)
+    wickets = player_data.get("wickets", 0)
+    catches = player_data.get("catches", 0)
+    stumpings = player_data.get("stumpings", 0)
+    maidens = player_data.get("maidens", 0)
+    dismissal = player_data.get("dismissal", "")
+    mom = player_data.get("mom", 0)
+    hattrick = player_data.get("hattrick", 0)
+    role = player_data.get("role", "Batsman")
+
+    pts = 0
+
+    # Base points
+    pts += runs * 1
+    pts += fours * 1
+    pts += sixes * 2
+    pts += wickets * 25
+    pts += catches * 3
+    pts += stumpings * 5
+    pts += maidens * 10
+
+    # Duck penalty
+    if runs == 0 and dismissal == "Out":
+        if role == "Batsman":
+            pts -= 6
+        elif role == "All-rounder":
+            pts -= 4
+        elif role == "Bowler":
+            pts -= 2
+
+    # Not out bonus
+    if dismissal == "Not Out":
+        if role == "Batsman":
+            pts += 6
+        elif role == "All-rounder":
+            pts += 4
+        elif role == "Bowler":
+            pts += 2
+
+    # Milestone bonuses — batting
+    if runs >= 100:
+        pts += 30
+    elif runs >= 75:
+        pts += 20
+    elif runs >= 50:
+        pts += 10
+    elif runs >= 30:
+        pts += 5
+
+    # Milestone bonuses — bowling
+    if hattrick:
+        pts += 30
+    if wickets >= 5:
+        pts += 30
+    elif wickets == 4:
+        pts += 20
+    elif wickets == 3:
+        pts += 10
+    elif wickets == 2:
+        pts += 5
+
+    # MOM
+    if mom:
+        pts += 10
+
+    return pts
+
+
+def get_all_stats():
+    return HISTORICAL_STATS + NEW_MATCH_STATS
+
+
+def get_player_role(player_name):
+    """Look up role from team data."""
+    for team in TEAMS.values():
+        for p in team["players"]:
+            if p["name"] == player_name:
+                return p["role"]
+    return "Batsman"
+
+
+def get_leaderboard():
+    all_stats = get_all_stats()
+    matches_played = sorted(list(set(s["match"] for s in all_stats)))
+
+    # Build per-owner per-match totals
+    owner_match_pts = {owner: {} for owner in TEAMS}
+
+    for stat in all_stats:
+        player_name = stat["player"]
+        match = stat["match"]
+        raw_pts = stat["pts"]
+
+        for owner, team in TEAMS.items():
+            for p in team["players"]:
+                if p["name"] == player_name:
+                    mult = 2 if p["cvc"] == "C" else 1.5 if p["cvc"] == "VC" else 1
+                    if match not in owner_match_pts[owner]:
+                        owner_match_pts[owner][match] = 0
+                    owner_match_pts[owner][match] += raw_pts * mult
+
+    result = []
+    for owner in TEAMS:
+        match_pts = owner_match_pts[owner]
+        total = sum(match_pts.values())
+        result.append({
+            "name": owner,
+            "total": round(total, 1),
+            "match_pts": {m: round(match_pts.get(m, 0), 1) for m in matches_played}
+        })
+
+    result.sort(key=lambda x: x["total"], reverse=True)
+    for i, r in enumerate(result):
+        r["rank"] = i + 1
+
+    return result, matches_played
+
+
+# ─── API ENDPOINTS ────────────────────────────────────────────────────────────
+
+@app.route("/")
+def index():
+    return render_template("index.html")
+
+@app.route("/admin")
+def admin():
+    return render_template("admin.html")
+
+@app.route("/api/leaderboard")
+def api_leaderboard():
+    lb, matches = get_leaderboard()
+    return jsonify({"leaderboard": lb, "matches": matches})
+
+@app.route("/api/teams")
+def api_teams():
+    all_stats = get_all_stats()
+    player_totals = {}
+    for stat in all_stats:
+        name = stat["player"]
+        if name not in player_totals:
+            player_totals[name] = {"name": name, "role": stat["role"], "total_pts": 0, "total_runs": 0, "total_wkts": 0, "matches": []}
+        player_totals[name]["total_pts"] += stat["pts"]
+        player_totals[name]["total_runs"] += stat.get("runs", 0)
+        player_totals[name]["total_wkts"] += stat.get("wickets", 0)
+        player_totals[name]["matches"].append({"match": stat["match"], "pts": stat["pts"], "runs": stat.get("runs", 0), "wkts": stat.get("wickets", 0), "mom": stat.get("mom", 0)})
+
+    teams_out = {}
+    for owner, team in TEAMS.items():
+        players_out = []
+        for p in team["players"]:
+            name = p["name"]
+            pt = player_totals.get(name, {"total_pts": 0, "total_runs": 0, "total_wkts": 0, "matches": []})
+            mult = 2 if p["cvc"] == "C" else 1.5 if p["cvc"] == "VC" else 1
+            players_out.append({
+                "name": name,
+                "role": p["role"],
+                "ipl": p["ipl"],
+                "cvc": p["cvc"],
+                "raw_pts": round(pt["total_pts"], 1),
+                "display_pts": round(pt["total_pts"] * mult, 1),
+                "total_runs": pt["total_runs"],
+                "total_wkts": pt["total_wkts"],
+                "matches": pt["matches"],
+            })
+        teams_out[owner] = sorted(players_out, key=lambda x: x["display_pts"], reverse=True)
+
+    return jsonify({"teams": teams_out})
+
+@app.route("/api/players")
+def api_players():
+    all_stats = get_all_stats()
+    player_totals = {}
+    for stat in all_stats:
+        name = stat["player"]
+        if name not in player_totals:
+            player_totals[name] = {"name": name, "role": stat["role"], "total_pts": 0, "total_runs": 0, "total_wkts": 0, "matches": []}
+        player_totals[name]["total_pts"] += stat["pts"]
+        player_totals[name]["total_runs"] += stat.get("runs", 0)
+        player_totals[name]["total_wkts"] += stat.get("wickets", 0)
+        player_totals[name]["matches"].append({"match": stat["match"], "pts": stat["pts"], "runs": stat.get("runs", 0), "wkts": stat.get("wickets", 0), "mom": stat.get("mom", 0)})
+
+    players = sorted(player_totals.values(), key=lambda x: x["total_pts"], reverse=True)
+    for p in players:
+        p["total_pts"] = round(p["total_pts"], 1)
+    return jsonify({"players": players})
+
+@app.route("/api/upload-scorecard", methods=["POST"])
+def upload_scorecard():
+    admin_key = request.headers.get("X-Admin-Key", "")
+    if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    if "image" not in request.files:
+        return jsonify({"error": "No image provided"}), 400
+
+    match_name = request.form.get("match_name", "").strip()
+    if not match_name:
+        return jsonify({"error": "Match name required"}), 400
+
+    image_file = request.files["image"]
+    image_data = base64.standard_b64encode(image_file.read()).decode("utf-8")
+    media_type = image_file.content_type or "image/png"
+
+    # Build known players list for context
+    all_players = []
+    for team in TEAMS.values():
+        for p in team["players"]:
+            all_players.append(f"{p['name']} ({p['role']})")
+    players_context = "\n".join(all_players)
+
+    prompt = f"""You are reading an IPL cricket scorecard image. Extract ALL player statistics visible.
+
+Known fantasy league players (for name matching):
+{players_context}
+
+For each player you can see in the scorecard, return a JSON array with this exact structure:
+[
+  {{
+    "player": "exact player name",
+    "role": "Batsman" or "Bowler" or "All-rounder",
+    "runs": number,
+    "fours": number,
+    "sixes": number,
+    "wickets": number,
+    "catches": number,
+    "stumpings": number,
+    "maidens": number,
+    "dismissal": "Out" or "Not Out" or "DNB",
+    "mom": 0 or 1,
+    "hattrick": 0 or 1
+  }}
+]
+
+Rules:
+- dismissal = "DNB" if the player did not bat (bowlers who didn't bat)
+- dismissal = "Not Out" if the player was not out
+- dismissal = "Out" if the player was dismissed
+- catches includes catches taken in the field (look at dismissal descriptions like "c PlayerName b Bowler")
+- mom = 1 only for the Man of the Match
+- Return ONLY the JSON array, no other text
+
+Scorecard image is attached."""
+
+    try:
+        response = client.messages.create(
+            model="claude-opus-4-5",
+            max_tokens=2000,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": image_data}},
+                    {"type": "text", "text": prompt}
+                ]
+            }]
+        )
+
+        raw = response.content[0].text.strip()
+        # Strip markdown code fences if present
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        raw = raw.strip()
+
+        players_data = json.loads(raw)
+
+        # Calculate points and add match name
+        new_entries = []
+        for p in players_data:
+            role = p.get("role") or get_player_role(p["player"])
+            p["role"] = role
+            pts = calculate_points(p)
+            entry = {
+                "match": match_name,
+                "player": p["player"],
+                "role": role,
+                "runs": p.get("runs", 0),
+                "fours": p.get("fours", 0),
+                "sixes": p.get("sixes", 0),
+                "wickets": p.get("wickets", 0),
+                "catches": p.get("catches", 0),
+                "stumpings": p.get("stumpings", 0),
+                "maidens": p.get("maidens", 0),
+                "dismissal": p.get("dismissal", "DNB"),
+                "mom": p.get("mom", 0),
+                "hattrick": p.get("hattrick", 0),
+                "pts": pts,
+            }
+            new_entries.append(entry)
+
+        NEW_MATCH_STATS.extend(new_entries)
+
+        return jsonify({
+            "success": True,
+            "match": match_name,
+            "players_processed": len(new_entries),
+            "entries": new_entries
+        })
+
+    except json.JSONDecodeError as e:
+        return jsonify({"error": f"Could not parse scorecard data: {str(e)}", "raw": raw}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/matches")
+def api_matches():
+    all_stats = get_all_stats()
+    matches = sorted(list(set(s["match"] for s in all_stats)))
+    return jsonify({"matches": matches})
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=False)
