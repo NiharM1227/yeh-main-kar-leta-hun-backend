@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IPL Fantasy — Admin</title>
+<title>Yeh Main Kar Leta Hu — Admin</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: #0a0a0f; color: #f0f0f8; font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 20px; }
@@ -30,7 +30,7 @@
 </style>
 </head>
 <body>
-<h1>🏏 Admin Panel</h1>
+<h1>🏏 Yeh Main Kar Leta Hu</h1>
 <p>Upload a scorecard screenshot to update points</p>
 
 <label>Admin Key</label>
@@ -145,6 +145,95 @@ async function uploadScorecard() {
     }
   } catch (err) {
     spinner.style.display = 'none';
+    btn.disabled = false;
+    resultEl.style.display = 'block';
+    resultEl.className = 'result error';
+    resultEl.innerHTML = `<h3>❌ Connection error</h3><p>${err.message}</p>`;
+  }
+}
+</script>
+
+<div style="border-top:1px solid #2a2a3d;margin:28px 0 24px;"></div>
+<h2 style="color:#ef4444;font-size:18px;margin-bottom:4px;">⚠️ C/VC Change Penalty</h2>
+<p>Record a captain or vice-captain change. Applies a points deduction to that team.</p>
+
+<label>Admin Key</label>
+<input type="password" id="cvc-admin-key" placeholder="Enter admin key">
+
+<label>Team Owner</label>
+<select id="cvc-team">
+  <option value="">Select team owner</option>
+  <option>Vijay</option>
+  <option>Yash Shah</option>
+  <option>Samay Maru</option>
+  <option>Harsh Gupta</option>
+  <option>Vikram Jumani</option>
+  <option>Rishub Bubna</option>
+  <option>Nihar Mehta</option>
+  <option>Qais / Vaishali</option>
+</select>
+
+<label>Change Type</label>
+<select id="cvc-type">
+  <option value="C">Captain change (−150 pts)</option>
+  <option value="VC">Vice Captain change (−75 pts)</option>
+</select>
+
+<label>From Player</label>
+<input type="text" id="cvc-from" placeholder="e.g. Yashasvi Jaiswal">
+
+<label>To Player</label>
+<input type="text" id="cvc-to" placeholder="e.g. Nicholas Pooran">
+
+<label>Date of Change</label>
+<input type="date" id="cvc-date">
+
+<button class="btn" id="cvc-btn" onclick="submitCvcChange()" style="background:#ef4444;">Apply Penalty</button>
+<div class="result" id="cvc-result" style="margin-top:16px;display:none;"></div>
+
+<script>
+async function submitCvcChange() {
+  const key = document.getElementById('cvc-admin-key').value.trim();
+  const team = document.getElementById('cvc-team').value;
+  const type = document.getElementById('cvc-type').value;
+  const from = document.getElementById('cvc-from').value.trim();
+  const to = document.getElementById('cvc-to').value.trim();
+  const date = document.getElementById('cvc-date').value;
+  const resultEl = document.getElementById('cvc-result');
+  const btn = document.getElementById('cvc-btn');
+
+  if (!key) { alert('Enter admin key'); return; }
+  if (!team) { alert('Select a team owner'); return; }
+  if (!from || !to) { alert('Enter both From and To players'); return; }
+  if (!date) { alert('Select a date'); return; }
+
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/cvc-change', {
+      method: 'POST',
+      headers: { 'X-Admin-Key': key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ team, type, from, to, date })
+    });
+    const data = await res.json();
+
+    btn.disabled = false;
+    resultEl.style.display = 'block';
+
+    if (data.success) {
+      resultEl.className = 'result success';
+      const penalty = type === 'C' ? -150 : -75;
+      resultEl.innerHTML = `<h3>✅ Penalty Applied</h3>
+        <div class="player-row"><span>${team}</span><span class="pts-neg">${penalty} pts</span></div>
+        <div class="player-row"><span>Type</span><span>${type === 'C' ? 'Captain' : 'Vice Captain'} change</span></div>
+        <div class="player-row"><span>From</span><span>${from}</span></div>
+        <div class="player-row"><span>To</span><span>${to}</span></div>
+        <div class="player-row"><span>Date</span><span>${date}</span></div>`;
+    } else {
+      resultEl.className = 'result error';
+      resultEl.innerHTML = `<h3>❌ Error</h3><p>${data.error}</p>`;
+    }
+  } catch (err) {
     btn.disabled = false;
     resultEl.style.display = 'block';
     resultEl.className = 'result error';
