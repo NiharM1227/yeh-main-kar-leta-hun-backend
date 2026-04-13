@@ -39,79 +39,109 @@
 <label>Match Name</label>
 <input type="text" id="match-name" placeholder="e.g. CSK vs MI">
 
-<label>Scorecard Screenshot</label>
-<div class="upload-area" id="upload-area" onclick="document.getElementById('image-input').click()">
-  <p>Tap to select image or drag & drop</p>
-  <img id="preview" class="preview">
+<label>Innings 1 Scorecard</label>
+<div class="upload-area" id="upload-area-1" onclick="document.getElementById('image-input-1').click()">
+  <p>Tap to select innings 1 screenshot</p>
+  <img id="preview-1" class="preview">
 </div>
-<input type="file" id="image-input" accept="image/*" style="display:none" onchange="handleFile(this.files[0])">
+<input type="file" id="image-input-1" accept="image/*" style="display:none" onchange="handleFile(this.files[0], 1)">
 
-<div style="color:#6b6b8a;font-size:12px;margin-bottom:16px">Upload both innings scorecards separately for the same match name</div>
+<label>Innings 2 Scorecard</label>
+<div class="upload-area" id="upload-area-2" onclick="document.getElementById('image-input-2').click()">
+  <p>Tap to select innings 2 screenshot</p>
+  <img id="preview-2" class="preview">
+</div>
+<input type="file" id="image-input-2" accept="image/*" style="display:none" onchange="handleFile(this.files[0], 2)">
 
-<button class="btn" id="upload-btn" onclick="uploadScorecard()">Process Scorecard</button>
+<label>Man of the Match <span style="color:#6b6b8a;font-size:11px">(optional)</span></label>
+<input type="text" id="mom-player" placeholder="e.g. Virat Kohli">
+
+<div style="color:#6b6b8a;font-size:12px;margin-bottom:16px">You can upload one or both innings at once</div>
+
+<button class="btn" id="upload-btn" onclick="uploadScorecard()">Process Scorecards</button>
 
 <div class="spinner" id="spinner">⏳ Reading scorecard with AI... this takes ~15 seconds</div>
 <div class="result" id="result"></div>
 
 <script>
-const uploadArea = document.getElementById('upload-area');
-let selectedFile = null;
+let selectedFiles = { 1: null, 2: null };
 
-uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('dragover'); });
-uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
-uploadArea.addEventListener('drop', e => { e.preventDefault(); uploadArea.classList.remove('dragover'); handleFile(e.dataTransfer.files[0]); });
+['1','2'].forEach(n => {
+  const area = document.getElementById(`upload-area-${n}`);
+  area.addEventListener('dragover', e => { e.preventDefault(); area.classList.add('dragover'); });
+  area.addEventListener('dragleave', () => area.classList.remove('dragover'));
+  area.addEventListener('drop', e => { e.preventDefault(); area.classList.remove('dragover'); handleFile(e.dataTransfer.files[0], n); });
+});
 
-function handleFile(file) {
+function handleFile(file, innings) {
   if (!file) return;
-  selectedFile = file;
-  const preview = document.getElementById('preview');
+  selectedFiles[innings] = file;
+  const preview = document.getElementById(`preview-${innings}`);
   preview.src = URL.createObjectURL(file);
   preview.style.display = 'block';
-  document.querySelector('.upload-area p').textContent = file.name;
+  document.querySelector(`#upload-area-${innings} p`).textContent = file.name;
+}
+
+async function uploadInnings(file, matchName, momPlayer, isLast) {
+  const formData = new FormData();
+  formData.append('image', file);
+  formData.append('match_name', matchName);
+  if (isLast && momPlayer) formData.append('mom_player', momPlayer);
+  const res = await fetch('/api/upload-scorecard', {
+    method: 'POST',
+    headers: { 'X-Admin-Key': document.getElementById('admin-key').value.trim() },
+    body: formData
+  });
+  return await res.json();
 }
 
 async function uploadScorecard() {
   const key = document.getElementById('admin-key').value.trim();
   const matchName = document.getElementById('match-name').value.trim();
+  const momPlayer = document.getElementById('mom-player').value.trim();
   const resultEl = document.getElementById('result');
   const spinner = document.getElementById('spinner');
   const btn = document.getElementById('upload-btn');
 
   if (!key) { alert('Enter admin key'); return; }
   if (!matchName) { alert('Enter match name'); return; }
-  if (!selectedFile) { alert('Select a scorecard image'); return; }
+  if (!selectedFiles[1] && !selectedFiles[2]) { alert('Select at least one scorecard'); return; }
 
   btn.disabled = true;
   spinner.style.display = 'block';
   resultEl.style.display = 'none';
 
-  const formData = new FormData();
-  formData.append('image', selectedFile);
-  formData.append('match_name', matchName);
-
   try {
-    const res = await fetch('/api/upload-scorecard', {
-      method: 'POST',
-      headers: { 'X-Admin-Key': key },
-      body: formData
-    });
-    const data = await res.json();
+    const filesToUpload = [selectedFiles[1], selectedFiles[2]].filter(Boolean);
+    let allEntries = [];
+    let errors = [];
+
+    for (let i = 0; i < filesToUpload.length; i++) {
+      const isLast = i === filesToUpload.length - 1;
+      spinner.innerHTML = `⏳ Processing innings ${i + 1} of ${filesToUpload.length}... (~15 seconds)`;
+      const data = await uploadInnings(filesToUpload[i], matchName, momPlayer, isLast);
+      if (data.success) {
+        allEntries = allEntries.concat(data.entries);
+      } else {
+        errors.push(data.error);
+      }
+    }
 
     spinner.style.display = 'none';
     btn.disabled = false;
     resultEl.style.display = 'block';
 
-    if (data.success) {
+    if (errors.length) {
+      resultEl.className = 'result error';
+      resultEl.innerHTML = `<h3>❌ Error</h3><p>${errors.join('<br>')}</p>`;
+    } else {
       resultEl.className = 'result success';
-      resultEl.innerHTML = `<h3>✅ ${data.match} — ${data.players_processed} players processed</h3>
-        ${data.entries.map(e => `
+      resultEl.innerHTML = `<h3>✅ ${matchName} — ${allEntries.length} players processed</h3>
+        ${allEntries.map(e => `
           <div class="player-row">
-            <span>${e.player} <small style="color:#6b6b8a">${e.runs}r ${e.wickets}w</small></span>
+            <span>${e.player} ${e.mom ? '⭐' : ''} <small style="color:#6b6b8a">${e.runs}r ${e.wickets}w</small></span>
             <span class="${e.pts >= 0 ? 'pts-pos' : 'pts-neg'}">${e.pts > 0 ? '+' : ''}${e.pts} pts</span>
           </div>`).join('')}`;
-    } else {
-      resultEl.className = 'result error';
-      resultEl.innerHTML = `<h3>❌ Error</h3><p>${data.error}</p>`;
     }
   } catch (err) {
     spinner.style.display = 'none';
@@ -122,5 +152,6 @@ async function uploadScorecard() {
   }
 }
 </script>
+
 </body>
 </html>
