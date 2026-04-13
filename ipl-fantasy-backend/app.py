@@ -236,6 +236,15 @@ def get_player_role(player_name):
 
 def get_leaderboard():
     all_stats = get_all_stats()
+
+    # Deduplicate: for same player+match, keep highest pts entry
+    deduped = {}
+    for stat in all_stats:
+        key = f"{stat['player']}|{stat['match']}"
+        if key not in deduped or stat["pts"] > deduped[key]["pts"]:
+            deduped[key] = stat
+    all_stats = list(deduped.values())
+
     matches_played = sorted(list(set(s["match"] for s in all_stats)))
 
     # Build per-owner per-match totals
@@ -335,8 +344,16 @@ def api_teams():
 @app.route("/api/players")
 def api_players():
     all_stats = get_all_stats()
-    player_totals = {}
+
+    # Deduplicate: for same player+match, keep the entry with highest pts
+    deduped = {}
     for stat in all_stats:
+        key = f"{stat['player']}|{stat['match']}"
+        if key not in deduped or stat["pts"] > deduped[key]["pts"]:
+            deduped[key] = stat
+
+    player_totals = {}
+    for stat in deduped.values():
         name = stat["player"]
         if name not in player_totals:
             player_totals[name] = {"name": name, "role": stat["role"], "total_pts": 0, "total_runs": 0, "total_wkts": 0, "matches": []}
