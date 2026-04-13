@@ -365,11 +365,26 @@ def upload_scorecard_url():
         return jsonify({"error": "URL and match name required"}), 400
 
     try:
-        # Use a scraping proxy to bypass ESPNcricinfo's bot protection
-        proxy_url = f"https://api.allorigins.win/get?url={req.utils.quote(url, safe='')}"
-        response = req.get(proxy_url, timeout=20)
-        response.raise_for_status()
-        html_content = response.json().get("contents", "")
+        # Try multiple proxies to bypass ESPNcricinfo's bot protection
+        proxies_to_try = [
+            f"https://corsproxy.io/?{req.utils.quote(url, safe='')}",
+            f"https://api.codetabs.com/v1/proxy?quest={req.utils.quote(url, safe='')}",
+        ]
+        html_content = None
+        last_error = None
+        for proxy_url in proxies_to_try:
+            try:
+                response = req.get(proxy_url, timeout=20, headers={"User-Agent": "Mozilla/5.0"})
+                if response.status_code == 200 and len(response.text) > 1000:
+                    html_content = response.text
+                    break
+            except Exception as e:
+                last_error = str(e)
+                continue
+
+        if not html_content:
+            return jsonify({"error": f"Could not fetch scorecard. Try using screenshot upload instead. ({last_error})"}), 500
+
         soup = BeautifulSoup(html_content, "html.parser")
         scorecard_text = soup.get_text(separator="\n", strip=True)
         scorecard_text = scorecard_text[:12000]
