@@ -548,21 +548,48 @@ Rules:
 
 def process_players(players_data, match_name, mom_player):
     """Shared logic for processing player data from any source."""
-    # Deduplicate — keep the entry with the highest points for each player
-    seen = {}
+    # Merge duplicate entries for the same player (batting + bowling combined)
+    merged = {}
     for p in players_data:
         name = p["player"].strip()
-        role = p.get("role") or get_player_role(name)
-        p["role"] = role
-        pts = calculate_points(p)
-        if name not in seen or pts > seen[name]["pts"]:
-            seen[name] = {"data": p, "pts": pts}
+        if name not in merged:
+            merged[name] = {
+                "player": name,
+                "role": p.get("role") or get_player_role(name),
+                "runs": p.get("runs", 0),
+                "fours": p.get("fours", 0),
+                "sixes": p.get("sixes", 0),
+                "wickets": p.get("wickets", 0),
+                "catches": p.get("catches", 0),
+                "stumpings": p.get("stumpings", 0),
+                "maidens": p.get("maidens", 0),
+                "dismissal": p.get("dismissal", "DNB"),
+                "mom": p.get("mom", 0),
+                "hattrick": p.get("hattrick", 0),
+            }
+        else:
+            # Merge — take the max of batting stats, add bowling stats
+            m = merged[name]
+            m["runs"] = max(m["runs"], p.get("runs", 0))
+            m["fours"] = max(m["fours"], p.get("fours", 0))
+            m["sixes"] = max(m["sixes"], p.get("sixes", 0))
+            m["wickets"] = max(m["wickets"], p.get("wickets", 0))
+            m["catches"] = max(m["catches"], p.get("catches", 0))
+            m["stumpings"] = max(m["stumpings"], p.get("stumpings", 0))
+            m["maidens"] = max(m["maidens"], p.get("maidens", 0))
+            m["mom"] = max(m["mom"], p.get("mom", 0))
+            m["hattrick"] = max(m["hattrick"], p.get("hattrick", 0))
+            # Keep non-DNB dismissal
+            if p.get("dismissal", "DNB") != "DNB":
+                m["dismissal"] = p["dismissal"]
+            # Update role if it gives more info
+            if p.get("role") in ["All-rounder", "Bowler"] and m["role"] == "Batsman":
+                m["role"] = p["role"]
 
     new_entries = []
     mom_applied = False
-    for name, item in seen.items():
-        p = item["data"]
-        pts = item["pts"]
+    for name, p in merged.items():
+        pts = calculate_points(p)
         # Apply MOM bonus from admin field
         if mom_player and not mom_applied:
             player_clean = name.strip().lower().replace(".", "").replace(" ", "")
@@ -575,16 +602,16 @@ def process_players(players_data, match_name, mom_player):
             "match": match_name,
             "player": name,
             "role": p["role"],
-            "runs": p.get("runs", 0),
-            "fours": p.get("fours", 0),
-            "sixes": p.get("sixes", 0),
-            "wickets": p.get("wickets", 0),
-            "catches": p.get("catches", 0),
-            "stumpings": p.get("stumpings", 0),
-            "maidens": p.get("maidens", 0),
-            "dismissal": p.get("dismissal", "DNB"),
-            "mom": p.get("mom", 0),
-            "hattrick": p.get("hattrick", 0),
+            "runs": p["runs"],
+            "fours": p["fours"],
+            "sixes": p["sixes"],
+            "wickets": p["wickets"],
+            "catches": p["catches"],
+            "stumpings": p["stumpings"],
+            "maidens": p["maidens"],
+            "dismissal": p["dismissal"],
+            "mom": p["mom"],
+            "hattrick": p["hattrick"],
             "pts": pts,
         }
         new_entries.append(entry)
