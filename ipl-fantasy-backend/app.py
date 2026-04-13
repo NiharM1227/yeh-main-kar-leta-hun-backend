@@ -432,13 +432,15 @@ Scorecard image is attached."""
 
         # Calculate points and add match name
         new_entries = []
+        mom_applied = False
         for p in players_data:
             role = p.get("role") or get_player_role(p["player"])
             p["role"] = role
             # Override MOM from admin field if provided
-            if mom_player:
+            if mom_player and not mom_applied:
                 if mom_player.strip().lower() in p["player"].strip().lower() or p["player"].strip().lower() in mom_player.strip().lower():
                     p["mom"] = 1
+                    mom_applied = True
             pts = calculate_points(p)
             entry = {
                 "match": match_name,
@@ -459,6 +461,20 @@ Scorecard image is attached."""
             new_entries.append(entry)
 
         NEW_MATCH_STATS.extend(new_entries)
+
+        # If MOM was specified but not found in scorecard, add 10 pts manually
+        if mom_player and not mom_applied:
+            role = get_player_role(mom_player)
+            NEW_MATCH_STATS.append({
+                "match": match_name,
+                "player": mom_player,
+                "role": role,
+                "runs": 0, "fours": 0, "sixes": 0,
+                "wickets": 0, "catches": 0, "stumpings": 0,
+                "maidens": 0, "dismissal": "DNB",
+                "mom": 1, "hattrick": 0,
+                "pts": 10,
+            })
 
         return jsonify({
             "success": True,
