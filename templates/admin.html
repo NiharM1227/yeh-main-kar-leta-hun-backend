@@ -202,6 +202,69 @@ async function addMomPoints() {
   }
 }
 </script>
+
+<div style="border-top:1px solid #2a2a3d;margin:28px 0 24px;"></div>
+<h2 style="color:#60a5fa;font-size:18px;margin-bottom:4px;">🔧 Adjust Player Points</h2>
+<p>Fix incorrect points for any player in a specific match.</p>
+
+<label>Admin Key</label>
+<input type="password" id="adj-admin-key" placeholder="Enter admin key">
+
+<label>Player Name</label>
+<input type="text" id="adj-player" placeholder="e.g. Harshal Patel">
+
+<label>Match Name</label>
+<input type="text" id="adj-match" placeholder="e.g. SRH vs RCB">
+
+<label>Points Adjustment</label>
+<input type="number" id="adj-points" placeholder="e.g. -2 to deduct, 6 to add">
+
+<button class="btn" id="adj-btn" onclick="adjustPoints()" style="background:#60a5fa;color:#000;">Apply Adjustment</button>
+<div class="result" id="adj-result" style="margin-top:16px;display:none;"></div>
+
+<script>
+async function adjustPoints() {
+  const key = document.getElementById('adj-admin-key').value.trim();
+  const player = document.getElementById('adj-player').value.trim();
+  const match = document.getElementById('adj-match').value.trim();
+  const adjustment = parseFloat(document.getElementById('adj-points').value);
+  const resultEl = document.getElementById('adj-result');
+  const btn = document.getElementById('adj-btn');
+
+  if (!key) { alert('Enter admin key'); return; }
+  if (!player || !match) { alert('Enter player and match name'); return; }
+  if (isNaN(adjustment)) { alert('Enter a valid number'); return; }
+
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/adjust-points', {
+      method: 'POST',
+      headers: { 'X-Admin-Key': key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ player, match, adjustment })
+    });
+    const data = await res.json();
+    btn.disabled = false;
+    resultEl.style.display = 'block';
+    if (data.success) {
+      resultEl.className = 'result success';
+      resultEl.innerHTML = `<h3>✅ Done</h3>
+        <div class="player-row"><span>${data.player}</span><span>${data.old_pts} → <strong>${data.new_pts} pts</strong></span></div>
+        <div class="player-row"><span>Match</span><span>${data.match}</span></div>`;
+    } else {
+      resultEl.className = 'result error';
+      resultEl.innerHTML = `<h3>❌ Error</h3><p>${data.error}</p>`;
+    }
+  } catch(err) {
+    btn.disabled = false;
+    resultEl.style.display = 'block';
+    resultEl.className = 'result error';
+    resultEl.innerHTML = `<h3>❌ Connection error</h3><p>${err.message}</p>`;
+  }
+}
+</script>
+
+<div style="border-top:1px solid #2a2a3d;margin:28px 0 24px;"></div>
+<h2 style="color:#ef4444;font-size:18px;margin-bottom:4px;">⚠️ C/VC Change Penalty</h2>
 <p>Record a captain or vice-captain change. Applies a points deduction to that team.</p>
 
 <label>Admin Key</label>
