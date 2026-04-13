@@ -378,7 +378,9 @@ Known fantasy league players (use for name matching):
 Scorecard text:
 {scorecard_text[:12000]}
 
-Return a JSON array with one entry per player with this exact structure:
+CRITICAL: Return ONLY ONE entry per player. Never duplicate. For players who bat AND bowl, merge into one entry combining all their stats.
+
+Return a JSON array with this exact structure:
 [
   {{
     "player": "exact player name",
@@ -397,11 +399,10 @@ Return a JSON array with one entry per player with this exact structure:
 ]
 
 Rules:
-- Include ALL batsmen and bowlers from BOTH innings
-- dismissal = "DNB" if did not bat
-- dismissal = "Not Out" if not out  
-- dismissal = "Out" if dismissed
-- catches = catches taken in the field
+- ONE entry per player only — no duplicates whatsoever
+- Include ALL players from both teams
+- dismissal = "DNB" if did not bat, "Not Out" if not out, "Out" if dismissed
+- catches = catches taken in the field by this player
 - Return ONLY the JSON array, nothing else"""
 
     try:
@@ -649,7 +650,9 @@ def upload_scorecard():
 Known fantasy league players (for name matching):
 {players_context}
 
-For each player you can see in the scorecard, return a JSON array with this exact structure:
+CRITICAL: Return ONLY ONE entry per player. Never duplicate. For players who bat AND bowl, merge into one entry.
+
+Return a JSON array with this exact structure:
 [
   {{
     "player": "exact player name",
@@ -662,17 +665,15 @@ For each player you can see in the scorecard, return a JSON array with this exac
     "stumpings": number,
     "maidens": number,
     "dismissal": "Out" or "Not Out" or "DNB",
-    "mom": 0 or 1,
-    "hattrick": 0 or 1
+    "mom": 0,
+    "hattrick": 0
   }}
 ]
 
 Rules:
-- dismissal = "DNB" if the player did not bat (bowlers who didn't bat)
-- dismissal = "Not Out" if the player was not out
-- dismissal = "Out" if the player was dismissed
-- catches includes catches taken in the field (look at dismissal descriptions like "c PlayerName b Bowler")
-- mom = 1 only for the Man of the Match
+- ONE entry per player only — no duplicates
+- dismissal = "DNB" if did not bat, "Not Out" if not out, "Out" if dismissed
+- catches = catches taken in the field
 - Return ONLY the JSON array, no other text
 
 Scorecard image is attached."""
