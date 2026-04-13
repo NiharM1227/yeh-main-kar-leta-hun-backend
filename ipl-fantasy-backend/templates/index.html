@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>IPL Fantasy League 2026</title>
+<title>Yeh Main Kar Leta Hu</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -130,7 +130,7 @@
   <div class="header-top">
     <div class="trophy-icon">🏆</div>
     <div class="header-title">
-      <h1>IPL Fantasy 2026</h1>
+      <h1>Yeh Main Kar Leta Hu</h1>
       <p id="last-updated">Loading...</p>
     </div>
     <div class="match-badge" id="match-count">...</div>
@@ -222,7 +222,7 @@
 </div>
 
 <script>
-let lbData = [], matchesList = [], teamsData = {}, playersData = [];
+let lbData = [], matchesList = [], teamsData = {}, playersData = [], cvcChanges = [];
 let roleFilter = 'All', matchFilter = 'All';
 
 async function loadAll() {
@@ -235,6 +235,7 @@ async function loadAll() {
     const players = await playersRes.json();
     lbData = lb.leaderboard;
     matchesList = lb.matches;
+    cvcChanges = lb.cvc_changes || [];
     teamsData = teams.teams;
     playersData = players.players;
     const matchCount = matchesList.length;
@@ -308,6 +309,8 @@ function renderTeamDetail(owner) {
   const lb = lbData.find(t => t.name === owner);
   const rank = lb ? lb.rank : '?';
   const total = lb ? lb.total : 0;
+  const penalty = lb ? lb.penalty : 0;
+  const ownerCvcChanges = cvcChanges.filter(c => c.team === owner);
 
   document.getElementById('team-details').innerHTML = `
     <div class="team-header-card">
@@ -317,6 +320,19 @@ function renderTeamDetail(owner) {
         <div class="team-stat"><div class="val">${total}</div><div class="lbl">Total Pts</div></div>
         <div class="team-stat"><div class="val">${players.length}</div><div class="lbl">Players</div></div>
       </div>
+      ${ownerCvcChanges.length ? `
+        <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
+          ${ownerCvcChanges.map(c => `
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;margin-bottom:6px">
+              <div>
+                <span style="color:var(--red);font-weight:600">${c.type === 'C' ? 'Captain' : 'Vice Captain'} change</span>
+                <span style="color:var(--muted);font-family:'DM Mono';font-size:10px;margin-left:6px">${c.date}</span>
+                <div style="color:var(--muted);font-size:11px;margin-top:2px">${c.from} → ${c.to}</div>
+              </div>
+              <span style="color:var(--red);font-family:'DM Mono';font-weight:600">${c.penalty} pts</span>
+            </div>
+          `).join('')}
+        </div>` : ''}
     </div>
     ${players.map(p => {
       const ptsClass = p.display_pts > 0 ? '' : p.display_pts < 0 ? 'neg' : 'zero';
