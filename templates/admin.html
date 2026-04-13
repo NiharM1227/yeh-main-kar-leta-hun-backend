@@ -31,7 +31,20 @@
 </head>
 <body>
 <h1>🏏 Yeh Main Kar Leta Hu</h1>
-<p>Upload a scorecard screenshot or paste an ESPNcricinfo URL</p>
+<p>Admin panel — manage match data and points</p>
+
+<div style="background:#1a1a26;border-radius:12px;padding:16px;margin-bottom:16px;border:1px solid #f97316">
+  <label style="color:#f97316;margin-bottom:8px">⚡ Option 1 — Fetch from CricketData API (recommended)</label>
+  <input type="password" id="api-admin-key" placeholder="Admin key">
+  <input type="text" id="api-match-name" placeholder="Match name e.g. CSK vs MI">
+  <input type="text" id="api-match-id" placeholder="CricketData match ID (from their API)">
+  <input type="text" id="api-mom-player" placeholder="Man of the Match (optional)">
+  <button class="btn" id="api-fetch-btn" onclick="fetchFromAPI()" style="margin-bottom:8px">Fetch Scorecard from API</button>
+  <div style="color:#6b6b8a;font-size:11px">Get the match ID from cricketdata.org — search for the match and copy the ID from the URL or response</div>
+  <div class="result" id="api-result" style="margin-top:12px;display:none;"></div>
+</div>
+
+<div style="text-align:center;color:#6b6b8a;font-size:12px;margin-bottom:16px">— or upload screenshots below —</div>
 
 <label>Admin Key</label>
 <input type="password" id="admin-key" placeholder="Enter admin key">
@@ -64,6 +77,50 @@
 
 <script>
 let selectedFiles = { 1: null, 2: null };
+
+async function fetchFromAPI() {
+  const key = document.getElementById('api-admin-key').value.trim();
+  const matchName = document.getElementById('api-match-name').value.trim();
+  const matchId = document.getElementById('api-match-id').value.trim();
+  const momPlayer = document.getElementById('api-mom-player').value.trim();
+  const resultEl = document.getElementById('api-result');
+  const btn = document.getElementById('api-fetch-btn');
+
+  if (!key) { alert('Enter admin key'); return; }
+  if (!matchName) { alert('Enter match name'); return; }
+  if (!matchId) { alert('Enter match ID from CricketData'); return; }
+
+  btn.disabled = true;
+  resultEl.style.display = 'block';
+  resultEl.className = 'result';
+  resultEl.innerHTML = '⏳ Fetching scorecard from CricketData...';
+
+  try {
+    const res = await fetch('/api/fetch-scorecard', {
+      method: 'POST',
+      headers: { 'X-Admin-Key': key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ match_name: matchName, match_id: matchId, mom_player: momPlayer })
+    });
+    const data = await res.json();
+    btn.disabled = false;
+    if (data.success) {
+      resultEl.className = 'result success';
+      resultEl.innerHTML = `<h3>✅ ${data.match} — ${data.players_processed} players processed</h3>
+        ${data.entries.map(e => `
+          <div class="player-row">
+            <span>${e.player} ${e.mom ? '⭐' : ''} <small style="color:#6b6b8a">${e.runs}r ${e.wickets}w</small></span>
+            <span class="${e.pts >= 0 ? 'pts-pos' : 'pts-neg'}">${e.pts > 0 ? '+' : ''}${e.pts} pts</span>
+          </div>`).join('')}`;
+    } else {
+      resultEl.className = 'result error';
+      resultEl.innerHTML = `<h3>❌ Error</h3><p>${data.error}</p>`;
+    }
+  } catch(err) {
+    btn.disabled = false;
+    resultEl.className = 'result error';
+    resultEl.innerHTML = `<h3>❌ Connection error</h3><p>${err.message}</p>`;
+  }
+}
 
 ['1','2'].forEach(n => {
   const area = document.getElementById(`upload-area-${n}`);
