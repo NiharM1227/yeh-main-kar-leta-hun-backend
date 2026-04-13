@@ -31,13 +31,21 @@
 </head>
 <body>
 <h1>🏏 Yeh Main Kar Leta Hu</h1>
-<p>Upload a scorecard screenshot to update points</p>
+<p>Upload a scorecard screenshot or paste an ESPNcricinfo URL</p>
 
 <label>Admin Key</label>
 <input type="password" id="admin-key" placeholder="Enter admin key">
 
 <label>Match Name</label>
 <input type="text" id="match-name" placeholder="e.g. CSK vs MI">
+
+<div style="background:#1a1a26;border-radius:12px;padding:16px;margin-bottom:16px;border:1px solid #2a2a3d">
+  <label style="color:#f97316;margin-bottom:8px">⚡ Option 1 — ESPNcricinfo URL (recommended)</label>
+  <input type="url" id="scorecard-url" placeholder="https://www.espncricinfo.com/...scorecard">
+  <div style="color:#6b6b8a;font-size:11px;margin-top:-10px;margin-bottom:0">Paste the full scorecard page URL — no screenshots needed</div>
+</div>
+
+<div style="text-align:center;color:#6b6b8a;font-size:12px;margin-bottom:16px">— or use screenshots below —</div>
 
 <label>Innings 1 Scorecard</label>
 <div class="upload-area" id="upload-area-1" onclick="document.getElementById('image-input-1').click()">
@@ -99,13 +107,58 @@ async function uploadScorecard() {
   const key = document.getElementById('admin-key').value.trim();
   const matchName = document.getElementById('match-name').value.trim();
   const momPlayer = document.getElementById('mom-player').value.trim();
+  const scorecardUrl = document.getElementById('scorecard-url').value.trim();
   const resultEl = document.getElementById('result');
   const spinner = document.getElementById('spinner');
   const btn = document.getElementById('upload-btn');
 
   if (!key) { alert('Enter admin key'); return; }
   if (!matchName) { alert('Enter match name'); return; }
-  if (!selectedFiles[1] && !selectedFiles[2]) { alert('Select at least one scorecard'); return; }
+
+  // Use URL if provided, otherwise use screenshots
+  if (scorecardUrl) {
+    if (!scorecardUrl.includes('espncricinfo.com')) {
+      alert('Please paste an ESPNcricinfo URL'); return;
+    }
+    btn.disabled = true;
+    spinner.style.display = 'block';
+    spinner.innerHTML = '⏳ Fetching scorecard from ESPNcricinfo... (~20 seconds)';
+    resultEl.style.display = 'none';
+
+    try {
+      const res = await fetch('/api/upload-scorecard-url', {
+        method: 'POST',
+        headers: { 'X-Admin-Key': key, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: scorecardUrl, match_name: matchName, mom_player: momPlayer })
+      });
+      const data = await res.json();
+      spinner.style.display = 'none';
+      btn.disabled = false;
+      resultEl.style.display = 'block';
+      if (data.success) {
+        resultEl.className = 'result success';
+        resultEl.innerHTML = `<h3>✅ ${data.match} — ${data.players_processed} players processed</h3>
+          ${data.entries.map(e => `
+            <div class="player-row">
+              <span>${e.player} ${e.mom ? '⭐' : ''} <small style="color:#6b6b8a">${e.runs}r ${e.wickets}w</small></span>
+              <span class="${e.pts >= 0 ? 'pts-pos' : 'pts-neg'}">${e.pts > 0 ? '+' : ''}${e.pts} pts</span>
+            </div>`).join('')}`;
+      } else {
+        resultEl.className = 'result error';
+        resultEl.innerHTML = `<h3>❌ Error</h3><p>${data.error}</p>`;
+      }
+    } catch (err) {
+      spinner.style.display = 'none';
+      btn.disabled = false;
+      resultEl.style.display = 'block';
+      resultEl.className = 'result error';
+      resultEl.innerHTML = `<h3>❌ Connection error</h3><p>${err.message}</p>`;
+    }
+    return;
+  }
+
+  // Screenshot fallback
+  if (!selectedFiles[1] && !selectedFiles[2]) { alert('Paste a URL or select at least one scorecard screenshot'); return; }
 
   btn.disabled = true;
   spinner.style.display = 'block';
