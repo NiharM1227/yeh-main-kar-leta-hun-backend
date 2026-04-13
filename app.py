@@ -935,10 +935,19 @@ def fetch_scorecard():
         # Build player stats directly from API structure
         players = {}  # name -> stats dict
 
+        def get_or_create(name):
+            if name not in players:
+                players[name] = {"player": name, "role": get_player_role(name),
+                                 "runs": 0, "fours": 0, "sixes": 0, "wickets": 0,
+                                 "catches": 0, "stumpings": 0, "maidens": 0,
+                                 "dismissal": "DNB", "mom": 0, "hattrick": 0}
+            return players[name]
+
+        # Pass 1: ALL batting across both innings first
         for innings in innings_list:
-            # Process batting
             for bat in innings.get("batting", []):
                 name = bat["batsman"]["name"]
+                p = get_or_create(name)
                 dismissal_text = bat.get("dismissal-text", "")
                 if dismissal_text == "not out":
                     dismissal = "Not Out"
@@ -946,49 +955,38 @@ def fetch_scorecard():
                     dismissal = "Out"
                 else:
                     dismissal = "DNB"
-
-                if name not in players:
-                    players[name] = {"player": name, "role": get_player_role(name),
-                                     "runs": 0, "fours": 0, "sixes": 0, "wickets": 0,
-                                     "catches": 0, "stumpings": 0, "maidens": 0,
-                                     "dismissal": "DNB", "mom": 0, "hattrick": 0}
-
-                players[name]["runs"] = max(players[name]["runs"], bat.get("r", 0))
-                players[name]["fours"] = max(players[name]["fours"], bat.get("4s", 0))
-                players[name]["sixes"] = max(players[name]["sixes"], bat.get("6s", 0))
+                if bat.get("r", 0) > p["runs"]:
+                    p["runs"] = bat.get("r", 0)
+                    p["fours"] = bat.get("4s", 0)
+                    p["sixes"] = bat.get("6s", 0)
                 if dismissal != "DNB":
-                    players[name]["dismissal"] = dismissal
+                    p["dismissal"] = dismissal
 
-            # Process bowling
+        # Pass 2: ALL bowling across both innings
+        for innings in innings_list:
             for bowl in innings.get("bowling", []):
                 name = bowl["bowler"]["name"]
-                if name not in players:
-                    players[name] = {"player": name, "role": get_player_role(name),
-                                     "runs": 0, "fours": 0, "sixes": 0, "wickets": 0,
-                                     "catches": 0, "stumpings": 0, "maidens": 0,
-                                     "dismissal": "DNB", "mom": 0, "hattrick": 0}
-                players[name]["wickets"] = max(players[name]["wickets"], bowl.get("w", 0))
-                players[name]["maidens"] = max(players[name]["maidens"], bowl.get("m", 0))
+                p = get_or_create(name)
+                p["wickets"] += bowl.get("w", 0)
+                p["maidens"] += bowl.get("m", 0)
 
-            # Process catching
+        # Pass 3: ALL catching across both innings
+        for innings in innings_list:
             for catch in innings.get("catching", []):
-                name = catch["catcher"]["name"]
-                # Handle alt names
-                alt_names = catch["catcher"].get("altnames", [])
-                # Find best matching name in our players dict
+                catcher_info = catch.get("catcher", {})
+                name = catcher_info.get("name", "")
+                if not name:
+                    continue
+                alt_names = catcher_info.get("altnames", [])
                 matched_name = name
                 if name not in players:
                     for alt in alt_names:
                         if alt in players:
                             matched_name = alt
                             break
-                if matched_name not in players:
-                    players[matched_name] = {"player": matched_name, "role": get_player_role(matched_name),
-                                             "runs": 0, "fours": 0, "sixes": 0, "wickets": 0,
-                                             "catches": 0, "stumpings": 0, "maidens": 0,
-                                             "dismissal": "DNB", "mom": 0, "hattrick": 0}
-                players[matched_name]["catches"] += catch.get("catch", 0)
-                players[matched_name]["stumpings"] += catch.get("stumped", 0)
+                p = get_or_create(matched_name)
+                p["catches"] += catch.get("catch", 0)
+                p["stumpings"] += catch.get("stumped", 0)
 
         # Convert to list and process points
         players_data = list(players.values())
