@@ -138,10 +138,27 @@ TEAMS = {
 # ─── HISTORICAL MATCH DATA ────────────────────────────────────────────────────
 
 HISTORICAL_STATS = [
+    # Cleared — all data will be uploaded fresh via admin panel
+    {"match":"RCB vs SRH","player":"Travis Head","role":"Batsman","runs":11,"fours":1,"sixes":1,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":14},
+    {"match":"RCB vs SRH","player":"Ishan Kishan","role":"Batsman","runs":80,"fours":7,"sixes":3,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":113},
+    {"match":"RCB vs SRH","player":"Heinrich Klaasen","role":"Batsman","runs":31,"fours":4,"sixes":2,"wickets":0,"catches":2,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":50},
+    {"match":"RCB vs SRH","player":"Nitish Kumar Reddy","role":"All-rounder","runs":1,"fours":0,"sixes":0,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":1},
+    {"match":"RCB vs SRH","player":"Aniket Verma","role":"Batsman","runs":43,"fours":2,"sixes":4,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":58},
+
+    {"match":"RCB vs SRH","player":"Phil Salt","role":"Batsman","runs":8,"fours":0,"sixes":0,"wickets":0,"catches":2,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":14},
+    {"match":"RCB vs SRH","player":"Virat Kohli","role":"Batsman","runs":69,"fours":8,"sixes":5,"wickets":0,"catches":1,"stumpings":0,"maidens":0,"dismissal":"Not Out","mom":0,"hattrick":0,"pts":106},
+    {"match":"RCB vs SRH","player":"Devdutt Padikkal","role":"Batsman","runs":61,"fours":3,"sixes":7,"wickets":0,"catches":3,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":97},
+    {"match":"RCB vs SRH","player":"Rajat Patidar","role":"Batsman","runs":31,"fours":1,"sixes":2,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":41},
+    {"match":"RCB vs SRH","player":"Jitesh Sharma","role":"Batsman","runs":0,"fours":0,"sixes":0,"wickets":0,"catches":1,"stumpings":0,"maidens":0,"dismissal":"Out","mom":0,"hattrick":0,"pts":-3},
+    {"match":"RCB vs SRH","player":"Tim David","role":"All-rounder","runs":16,"fours":1,"sixes":1,"wickets":0,"catches":0,"stumpings":0,"maidens":0,"dismissal":"Not Out","mom":0,"hattrick":0,"pts":23},
+    {"match":"RCB vs SRH","player":"Jacob Duffy","role":"Bowler","runs":0,"fours":0,"sixes":0,"wickets":3,"catches":0,"stumpings":0,"maidens":0,"dismissal":"DNB","mom":1,"hattrick":0,"pts":95},
 ]
 
 # Runtime storage for new matches (resets on restart — fine for now)
 NEW_MATCH_STATS = []
+
+# C/VC change penalties
+CVC_CHANGES = []
 
 # ─── SCORING LOGIC ────────────────────────────────────────────────────────────
 
@@ -250,13 +267,24 @@ def get_leaderboard():
                         owner_match_pts[owner][match] = 0
                     owner_match_pts[owner][match] += raw_pts * mult
 
+    # Apply C/VC penalties
+    for change in CVC_CHANGES:
+        owner = change["team"]
+        if owner in owner_match_pts:
+            penalty = -150 if change["type"] == "C" else -75
+            if "__penalties__" not in owner_match_pts[owner]:
+                owner_match_pts[owner]["__penalties__"] = 0
+            owner_match_pts[owner]["__penalties__"] += penalty
+
     result = []
     for owner in TEAMS:
         match_pts = owner_match_pts[owner]
-        total = sum(match_pts.values())
+        penalty = match_pts.pop("__penalties__", 0)
+        total = sum(match_pts.values()) + penalty
         result.append({
             "name": owner,
             "total": round(total, 1),
+            "penalty": round(penalty, 1),
             "match_pts": {m: round(match_pts.get(m, 0), 1) for m in matches_played}
         })
 
@@ -280,7 +308,7 @@ def admin():
 @app.route("/api/leaderboard")
 def api_leaderboard():
     lb, matches = get_leaderboard()
-    return jsonify({"leaderboard": lb, "matches": matches})
+    return jsonify({"leaderboard": lb, "matches": matches, "cvc_changes": CVC_CHANGES})
 
 @app.route("/api/teams")
 def api_teams():
@@ -347,6 +375,8 @@ def upload_scorecard():
     match_name = request.form.get("match_name", "").strip()
     if not match_name:
         return jsonify({"error": "Match name required"}), 400
+
+    mom_player = request.form.get("mom_player", "").strip().lower()
 
     image_file = request.files["image"]
     image_data = base64.standard_b64encode(image_file.read()).decode("utf-8")
@@ -420,6 +450,9 @@ Scorecard image is attached."""
         for p in players_data:
             role = p.get("role") or get_player_role(p["player"])
             p["role"] = role
+            # Override MOM from admin field if provided
+            if mom_player and p["player"].lower() == mom_player:
+                p["mom"] = 1
             pts = calculate_points(p)
             entry = {
                 "match": match_name,
@@ -453,7 +486,40 @@ Scorecard image is attached."""
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/api/matches")
+@app.route("/api/cvc-change", methods=["POST"])
+def api_cvc_change():
+    admin_key = request.headers.get("X-Admin-Key", "")
+    if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.get_json()
+    team = data.get("team", "").strip()
+    change_type = data.get("type", "").strip()
+    from_player = data.get("from", "").strip()
+    to_player = data.get("to", "").strip()
+    date = data.get("date", "").strip()
+
+    if not all([team, change_type, from_player, to_player, date]):
+        return jsonify({"error": "All fields required"}), 400
+
+    if team not in TEAMS:
+        return jsonify({"error": "Unknown team"}), 400
+
+    CVC_CHANGES.append({
+        "team": team,
+        "type": change_type,
+        "from": from_player,
+        "to": to_player,
+        "date": date,
+        "penalty": -150 if change_type == "C" else -75
+    })
+
+    return jsonify({"success": True})
+
+@app.route("/api/cvc-changes")
+def api_cvc_changes():
+    return jsonify({"changes": CVC_CHANGES})
+
 def api_matches():
     all_stats = get_all_stats()
     matches = sorted(list(set(s["match"] for s in all_stats)))
