@@ -734,6 +734,31 @@ Scorecard image is attached."""
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/add-mom", methods=["POST"])
+def add_mom():
+    admin_key = request.headers.get("X-Admin-Key", "")
+    if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.get_json()
+    player = data.get("player", "").strip()
+    match = data.get("match", "").strip()
+
+    if not player or not match:
+        return jsonify({"error": "Player and match required"}), 400
+
+    # Find and update the existing entry
+    for stat in NEW_MATCH_STATS:
+        stat_name = stat["player"].strip().lower().replace(".", "").replace(" ", "")
+        search_name = player.strip().lower().replace(".", "").replace(" ", "")
+        if stat["match"] == match and (stat_name == search_name or search_name in stat_name or stat_name in search_name):
+            if stat.get("mom", 0) == 0:  # Only add if not already MOM
+                stat["pts"] += 10
+                stat["mom"] = 1
+            return jsonify({"success": True, "player": stat["player"], "match": match})
+
+    return jsonify({"error": f"Player '{player}' not found in match '{match}'. Check spelling and match name."}), 404
+
 @app.route("/api/cvc-change", methods=["POST"])
 def api_cvc_change():
     admin_key = request.headers.get("X-Admin-Key", "")
