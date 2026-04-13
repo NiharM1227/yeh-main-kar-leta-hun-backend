@@ -321,6 +321,56 @@ async function adjustPoints() {
 </script>
 
 <div style="border-top:1px solid #2a2a3d;margin:28px 0 24px;"></div>
+<h2 style="color:#ef4444;font-size:18px;margin-bottom:4px;">🗑️ Delete Match Data</h2>
+<p>Delete all player data for a match so you can re-fetch it cleanly.</p>
+
+<label>Admin Key</label>
+<input type="password" id="del-admin-key" placeholder="Enter admin key">
+
+<label>Match Name</label>
+<input type="text" id="del-match-name" placeholder="e.g. RR vs CSK">
+
+<button class="btn" id="del-btn" onclick="deleteMatch()" style="background:#ef4444;">Delete Match Data</button>
+<div class="result" id="del-result" style="margin-top:16px;display:none;"></div>
+
+<script>
+async function deleteMatch() {
+  const key = document.getElementById('del-admin-key').value.trim();
+  const match = document.getElementById('del-match-name').value.trim();
+  const resultEl = document.getElementById('del-result');
+  const btn = document.getElementById('del-btn');
+
+  if (!key) { alert('Enter admin key'); return; }
+  if (!match) { alert('Enter match name'); return; }
+  if (!confirm(`Delete all data for "${match}"? This cannot be undone.`)) return;
+
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/delete-match', {
+      method: 'POST',
+      headers: { 'X-Admin-Key': key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ match_name: match })
+    });
+    const data = await res.json();
+    btn.disabled = false;
+    resultEl.style.display = 'block';
+    if (data.success) {
+      resultEl.className = 'result success';
+      resultEl.innerHTML = `<h3>✅ Done</h3><div class="player-row"><span>${data.match}</span><span>${data.rows_deleted} rows deleted</span></div>`;
+    } else {
+      resultEl.className = 'result error';
+      resultEl.innerHTML = `<h3>❌ Error</h3><p>${data.error}</p>`;
+    }
+  } catch(err) {
+    btn.disabled = false;
+    resultEl.style.display = 'block';
+    resultEl.className = 'result error';
+    resultEl.innerHTML = `<h3>❌ Connection error</h3><p>${err.message}</p>`;
+  }
+}
+</script>
+
+<div style="border-top:1px solid #2a2a3d;margin:28px 0 24px;"></div>
 <h2 style="color:#ef4444;font-size:18px;margin-bottom:4px;">⚠️ C/VC Change Penalty</h2>
 <p>Record a captain or vice-captain change. Applies a points deduction to that team.</p>
 
