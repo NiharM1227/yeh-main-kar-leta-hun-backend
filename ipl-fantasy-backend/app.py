@@ -137,8 +137,7 @@ TEAMS = {
 
 # ─── HISTORICAL MATCH DATA ────────────────────────────────────────────────────
 
-HISTORICAL_STATS = [
-]
+HISTORICAL_STATS = []
 
 # Runtime storage for new matches (resets on restart — fine for now)
 NEW_MATCH_STATS = []
@@ -437,8 +436,9 @@ Scorecard image is attached."""
             role = p.get("role") or get_player_role(p["player"])
             p["role"] = role
             # Override MOM from admin field if provided
-            if mom_player and p["player"].lower() == mom_player:
-                p["mom"] = 1
+            if mom_player:
+                if mom_player.strip().lower() in p["player"].strip().lower() or p["player"].strip().lower() in mom_player.strip().lower():
+                    p["mom"] = 1
             pts = calculate_points(p)
             entry = {
                 "match": match_name,
