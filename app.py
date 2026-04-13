@@ -4,6 +4,8 @@ import base64
 import requests as req
 from bs4 import BeautifulSoup
 import anthropic
+import psycopg2
+from psycopg2.extras import RealDictCursor
 from flask import Flask, request, jsonify, render_template, send_from_directory
 from flask_cors import CORS
 
@@ -12,7 +14,107 @@ CORS(app)
 
 client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
-# ─── TEAM DATA ────────────────────────────────────────────────────────────────
+# ─── DATABASE ─────────────────────────────────────────────────────────────────
+
+def get_db():
+    return psycopg2.connect(os.environ.get("DATABASE_URL"), cursor_factory=RealDictCursor)
+
+def init_db():
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS match_stats (
+                    id SERIAL PRIMARY KEY,
+                    match VARCHAR(100) NOT NULL,
+                    player VARCHAR(100) NOT NULL,
+                    role VARCHAR(50),
+                    runs INTEGER DEFAULT 0,
+                    fours INTEGER DEFAULT 0,
+                    sixes INTEGER DEFAULT 0,
+                    wickets INTEGER DEFAULT 0,
+                    catches INTEGER DEFAULT 0,
+                    stumpings INTEGER DEFAULT 0,
+                    maidens INTEGER DEFAULT 0,
+                    dismissal VARCHAR(20) DEFAULT 'DNB',
+                    mom INTEGER DEFAULT 0,
+                    hattrick INTEGER DEFAULT 0,
+                    pts REAL DEFAULT 0,
+                    UNIQUE(match, player)
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS cvc_changes (
+                    id SERIAL PRIMARY KEY,
+                    team VARCHAR(100) NOT NULL,
+                    type VARCHAR(5) NOT NULL,
+                    from_player VARCHAR(100),
+                    to_player VARCHAR(100),
+                    date VARCHAR(20),
+                    penalty INTEGER DEFAULT 0
+                )
+            """)
+        conn.commit()
+
+# Initialise DB on startup
+try:
+    init_db()
+except Exception as e:
+    print(f"DB init error: {e}")
+
+def get_all_stats():
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM match_stats ORDER BY id")
+                return [dict(r) for r in cur.fetchall()]
+    except Exception as e:
+        print(f"DB read error: {e}")
+        return []
+
+def get_all_cvc_changes():
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM cvc_changes ORDER BY id")
+                return [dict(r) for r in cur.fetchall()]
+    except Exception as e:
+        print(f"DB read error: {e}")
+        return []
+
+def save_stats(entries):
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                for e in entries:
+                    cur.execute("""
+                        INSERT INTO match_stats 
+                        (match, player, role, runs, fours, sixes, wickets, catches, stumpings, maidens, dismissal, mom, hattrick, pts)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                        ON CONFLICT (match, player) DO UPDATE SET
+                        runs=EXCLUDED.runs, fours=EXCLUDED.fours, sixes=EXCLUDED.sixes,
+                        wickets=EXCLUDED.wickets, catches=EXCLUDED.catches, stumpings=EXCLUDED.stumpings,
+                        maidens=EXCLUDED.maidens, dismissal=EXCLUDED.dismissal, mom=EXCLUDED.mom,
+                        hattrick=EXCLUDED.hattrick, pts=EXCLUDED.pts, role=EXCLUDED.role
+                    """, (e["match"], e["player"], e["role"], e["runs"], e["fours"], e["sixes"],
+                          e["wickets"], e["catches"], e["stumpings"], e["maidens"],
+                          e["dismissal"], e["mom"], e["hattrick"], e["pts"]))
+            conn.commit()
+    except Exception as ex:
+        print(f"DB save error: {ex}")
+
+def save_cvc_change(change):
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO cvc_changes (team, type, from_player, to_player, date, penalty)
+                    VALUES (%s,%s,%s,%s,%s,%s)
+                """, (change["team"], change["type"], change["from"], change["to"], change["date"], change["penalty"]))
+            conn.commit()
+    except Exception as ex:
+        print(f"DB save error: {ex}")
+
+
 
 TEAMS = {
     "Vijay": {"players": [
@@ -137,16 +239,6 @@ TEAMS = {
     ]},
 }
 
-# ─── HISTORICAL MATCH DATA ────────────────────────────────────────────────────
-
-HISTORICAL_STATS = []
-
-# Runtime storage for new matches (resets on restart — fine for now)
-NEW_MATCH_STATS = []
-
-# C/VC change penalties
-CVC_CHANGES = []
-
 # ─── SCORING LOGIC ────────────────────────────────────────────────────────────
 
 def calculate_points(player_data):
@@ -221,10 +313,6 @@ def calculate_points(player_data):
     return pts
 
 
-def get_all_stats():
-    return HISTORICAL_STATS + NEW_MATCH_STATS
-
-
 def get_player_role(player_name):
     """Look up role from team data."""
     for team in TEAMS.values():
@@ -236,6 +324,7 @@ def get_player_role(player_name):
 
 def get_leaderboard():
     all_stats = get_all_stats()
+    cvc_changes = get_all_cvc_changes()
 
     # Deduplicate: for same player+match, keep highest pts entry
     deduped = {}
@@ -264,7 +353,7 @@ def get_leaderboard():
                     owner_match_pts[owner][match] += raw_pts * mult
 
     # Apply C/VC penalties
-    for change in CVC_CHANGES:
+    for change in cvc_changes:
         owner = change["team"]
         if owner in owner_match_pts:
             penalty = -150 if change["type"] == "C" else -75
@@ -288,7 +377,7 @@ def get_leaderboard():
     for i, r in enumerate(result):
         r["rank"] = i + 1
 
-    return result, matches_played
+    return result, matches_played, cvc_changes
 
 
 # ─── API ENDPOINTS ────────────────────────────────────────────────────────────
@@ -303,8 +392,8 @@ def admin():
 
 @app.route("/api/leaderboard")
 def api_leaderboard():
-    lb, matches = get_leaderboard()
-    return jsonify({"leaderboard": lb, "matches": matches, "cvc_changes": CVC_CHANGES})
+    lb, matches, cvc_changes = get_leaderboard()
+    return jsonify({"leaderboard": lb, "matches": matches, "cvc_changes": cvc_changes})
 
 @app.route("/api/teams")
 def api_teams():
@@ -437,7 +526,7 @@ Rules:
 
         players_data = json.loads(raw)
         new_entries = process_players(players_data, match_name, mom_player)
-        NEW_MATCH_STATS.extend(new_entries)
+        save_stats(new_entries)
 
         mom_entry = next((e for e in new_entries if e.get("mom") == 1), None)
         return jsonify({
@@ -551,7 +640,7 @@ Rules:
 
         players_data = json.loads(raw)
         new_entries = process_players(players_data, match_name, mom_player)
-        NEW_MATCH_STATS.extend(new_entries)
+        save_stats(new_entries)
 
         return jsonify({
             "success": True,
@@ -720,7 +809,7 @@ Scorecard image is attached."""
 
         players_data = json.loads(raw)
         new_entries = process_players(players_data, match_name, mom_player)
-        NEW_MATCH_STATS.extend(new_entries)
+        save_stats(new_entries)
 
         return jsonify({
             "success": True,
@@ -747,17 +836,27 @@ def add_mom():
     if not player or not match:
         return jsonify({"error": "Player and match required"}), 400
 
-    # Find and update the existing entry
-    for stat in NEW_MATCH_STATS:
-        stat_name = stat["player"].strip().lower().replace(".", "").replace(" ", "")
-        search_name = player.strip().lower().replace(".", "").replace(" ", "")
-        if stat["match"] == match and (stat_name == search_name or search_name in stat_name or stat_name in search_name):
-            if stat.get("mom", 0) == 0:  # Only add if not already MOM
-                stat["pts"] += 10
-                stat["mom"] = 1
-            return jsonify({"success": True, "player": stat["player"], "match": match})
-
-    return jsonify({"error": f"Player '{player}' not found in match '{match}'. Check spelling and match name."}), 404
+    # Find and update in DB
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM match_stats WHERE match=%s", (match,))
+                rows = [dict(r) for r in cur.fetchall()]
+                search_name = player.strip().lower().replace(".", "").replace(" ", "")
+                found = None
+                for row in rows:
+                    stat_name = row["player"].strip().lower().replace(".", "").replace(" ", "")
+                    if stat_name == search_name or search_name in stat_name or stat_name in search_name:
+                        found = row
+                        break
+                if not found:
+                    return jsonify({"error": f"Player '{player}' not found in match '{match}'."}), 404
+                if found["mom"] == 0:
+                    cur.execute("UPDATE match_stats SET mom=1, pts=pts+10 WHERE id=%s", (found["id"],))
+                    conn.commit()
+                return jsonify({"success": True, "player": found["player"], "match": match})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/cvc-change", methods=["POST"])
 def api_cvc_change():
@@ -778,7 +877,7 @@ def api_cvc_change():
     if team not in TEAMS:
         return jsonify({"error": "Unknown team"}), 400
 
-    CVC_CHANGES.append({
+    save_cvc_change({
         "team": team,
         "type": change_type,
         "from": from_player,
@@ -791,12 +890,47 @@ def api_cvc_change():
 
 @app.route("/api/cvc-changes")
 def api_cvc_changes():
-    return jsonify({"changes": CVC_CHANGES})
+    return jsonify({"changes": get_all_cvc_changes()})
 
 def api_matches():
     all_stats = get_all_stats()
     matches = sorted(list(set(s["match"] for s in all_stats)))
     return jsonify({"matches": matches})
+
+@app.route("/api/adjust-points", methods=["POST"])
+def adjust_points():
+    admin_key = request.headers.get("X-Admin-Key", "")
+    if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.get_json()
+    player = data.get("player", "").strip()
+    match = data.get("match", "").strip()
+    adjustment = data.get("adjustment", 0)
+
+    if not player or not match:
+        return jsonify({"error": "Player and match required"}), 400
+
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM match_stats WHERE match=%s", (match,))
+                rows = [dict(r) for r in cur.fetchall()]
+                search_name = player.strip().lower().replace(".", "").replace(" ", "")
+                found = None
+                for row in rows:
+                    stat_name = row["player"].strip().lower().replace(".", "").replace(" ", "")
+                    if stat_name == search_name or search_name in stat_name or stat_name in search_name:
+                        found = row
+                        break
+                if not found:
+                    return jsonify({"error": f"Player '{player}' not found in match '{match}'."}), 404
+                new_pts = found["pts"] + adjustment
+                cur.execute("UPDATE match_stats SET pts=%s WHERE id=%s", (new_pts, found["id"]))
+                conn.commit()
+                return jsonify({"success": True, "player": found["player"], "match": match, "old_pts": found["pts"], "new_pts": new_pts})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/generate-banter", methods=["POST"])
 def generate_banter():
