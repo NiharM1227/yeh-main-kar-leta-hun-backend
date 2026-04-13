@@ -350,6 +350,90 @@ def api_players():
         p["total_pts"] = round(p["total_pts"], 1)
     return jsonify({"players": players})
 
+@app.route("/api/upload-scorecard-text", methods=["POST"])
+def upload_scorecard_text():
+    admin_key = request.headers.get("X-Admin-Key", "")
+    if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.get_json()
+    scorecard_text = data.get("text", "").strip()
+    match_name = data.get("match_name", "").strip()
+    mom_player = data.get("mom_player", "").strip()
+
+    if not scorecard_text or not match_name:
+        return jsonify({"error": "Scorecard text and match name required"}), 400
+
+    all_players = []
+    for team in TEAMS.values():
+        for p in team["players"]:
+            all_players.append(f"{p['name']} ({p['role']})")
+    players_context = "\n".join(all_players)
+
+    prompt = f"""You are reading an IPL cricket scorecard. Extract ALL player statistics from the text below.
+
+Known fantasy league players (use for name matching):
+{players_context}
+
+Scorecard text:
+{scorecard_text[:12000]}
+
+Return a JSON array with one entry per player with this exact structure:
+[
+  {{
+    "player": "exact player name",
+    "role": "Batsman" or "Bowler" or "All-rounder",
+    "runs": number,
+    "fours": number,
+    "sixes": number,
+    "wickets": number,
+    "catches": number,
+    "stumpings": number,
+    "maidens": number,
+    "dismissal": "Out" or "Not Out" or "DNB",
+    "mom": 0,
+    "hattrick": 0
+  }}
+]
+
+Rules:
+- Include ALL batsmen and bowlers from BOTH innings
+- dismissal = "DNB" if did not bat
+- dismissal = "Not Out" if not out  
+- dismissal = "Out" if dismissed
+- catches = catches taken in the field
+- Return ONLY the JSON array, nothing else"""
+
+    try:
+        ai_response = client.messages.create(
+            model="claude-opus-4-5",
+            max_tokens=3000,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        raw = ai_response.content[0].text.strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        raw = raw.strip()
+
+        players_data = json.loads(raw)
+        new_entries = process_players(players_data, match_name, mom_player)
+        NEW_MATCH_STATS.extend(new_entries)
+
+        return jsonify({
+            "success": True,
+            "match": match_name,
+            "players_processed": len(new_entries),
+            "entries": new_entries
+        })
+
+    except json.JSONDecodeError as e:
+        return jsonify({"error": f"Could not parse scorecard: {str(e)}"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/upload-scorecard-url", methods=["POST"])
 def upload_scorecard_url():
     admin_key = request.headers.get("X-Admin-Key", "")
@@ -464,24 +548,33 @@ Rules:
 
 def process_players(players_data, match_name, mom_player):
     """Shared logic for processing player data from any source."""
-    new_entries = []
-    mom_applied = False
+    # Deduplicate — keep the entry with the highest points for each player
+    seen = {}
     for p in players_data:
-        role = p.get("role") or get_player_role(p["player"])
+        name = p["player"].strip()
+        role = p.get("role") or get_player_role(name)
         p["role"] = role
         pts = calculate_points(p)
+        if name not in seen or pts > seen[name]["pts"]:
+            seen[name] = {"data": p, "pts": pts}
+
+    new_entries = []
+    mom_applied = False
+    for name, item in seen.items():
+        p = item["data"]
+        pts = item["pts"]
+        # Apply MOM bonus from admin field
         if mom_player and not mom_applied:
-            player_clean = p["player"].strip().lower().replace(".", "").replace(" ", "")
+            player_clean = name.strip().lower().replace(".", "").replace(" ", "")
             mom_clean = mom_player.strip().lower().replace(".", "").replace(" ", "")
             if mom_clean in player_clean or player_clean in mom_clean:
-                if not p.get("mom", 0):
-                    pts += 10
+                pts += 10
                 p["mom"] = 1
                 mom_applied = True
         entry = {
             "match": match_name,
-            "player": p["player"],
-            "role": role,
+            "player": name,
+            "role": p["role"],
             "runs": p.get("runs", 0),
             "fours": p.get("fours", 0),
             "sixes": p.get("sixes", 0),
