@@ -439,10 +439,12 @@ Rules:
         new_entries = process_players(players_data, match_name, mom_player)
         NEW_MATCH_STATS.extend(new_entries)
 
+        mom_entry = next((e for e in new_entries if e.get("mom") == 1), None)
         return jsonify({
             "success": True,
             "match": match_name,
             "players_processed": len(new_entries),
+            "mom_applied_to": mom_entry["player"] if mom_entry else f"NOT APPLIED (received: '{mom_player}')",
             "entries": new_entries
         })
 
