@@ -918,73 +918,80 @@ def fetch_scorecard():
         return jsonify({"error": "CricketData API key not configured"}), 500
 
     try:
-        # Fetch scorecard from CricketData
         url = f"https://api.cricapi.com/v1/match_scorecard?apikey={api_key}&id={match_id}"
         response = req.get(url, timeout=15)
         response.raise_for_status()
         result = response.json()
 
         if result.get("status") != "success":
-            return jsonify({"error": f"API error: {result.get('message', 'Unknown error')}"}), 500
+            return jsonify({"error": f"API error: {result.get('reason', result.get('message', 'Unknown error'))}"}), 500
 
-        scorecard = result.get("data", {})
+        scorecard_data = result.get("data", {})
+        innings_list = scorecard_data.get("scorecard", [])
 
-        # Build known players context
-        all_players = []
-        for team in TEAMS.values():
-            for p in team["players"]:
-                all_players.append(f"{p['name']} ({p['role']})")
-        players_context = "\n".join(all_players)
+        if not innings_list:
+            return jsonify({"error": "No scorecard data available for this match"}), 500
 
-        # Pass raw scorecard JSON to Claude for extraction
-        prompt = f"""You are processing an IPL cricket scorecard from CricketData API. Extract ALL player statistics.
+        # Build player stats directly from API structure
+        players = {}  # name -> stats dict
 
-Known fantasy league players (use for name matching):
-{players_context}
+        for innings in innings_list:
+            # Process batting
+            for bat in innings.get("batting", []):
+                name = bat["batsman"]["name"]
+                dismissal_text = bat.get("dismissal-text", "")
+                if dismissal_text == "not out":
+                    dismissal = "Not Out"
+                elif dismissal_text:
+                    dismissal = "Out"
+                else:
+                    dismissal = "DNB"
 
-Scorecard JSON:
-{json.dumps(scorecard, indent=2)[:12000]}
+                if name not in players:
+                    players[name] = {"player": name, "role": get_player_role(name),
+                                     "runs": 0, "fours": 0, "sixes": 0, "wickets": 0,
+                                     "catches": 0, "stumpings": 0, "maidens": 0,
+                                     "dismissal": "DNB", "mom": 0, "hattrick": 0}
 
-CRITICAL: Return ONLY ONE entry per player. For players who bat AND bowl, merge into one entry.
+                players[name]["runs"] = max(players[name]["runs"], bat.get("r", 0))
+                players[name]["fours"] = max(players[name]["fours"], bat.get("4s", 0))
+                players[name]["sixes"] = max(players[name]["sixes"], bat.get("6s", 0))
+                if dismissal != "DNB":
+                    players[name]["dismissal"] = dismissal
 
-Return a JSON array with this exact structure:
-[
-  {{
-    "player": "exact player name",
-    "role": "Batsman" or "Bowler" or "All-rounder",
-    "runs": number,
-    "fours": number,
-    "sixes": number,
-    "wickets": number,
-    "catches": number,
-    "stumpings": number,
-    "maidens": number,
-    "dismissal": "Out" or "Not Out" or "DNB",
-    "mom": 0,
-    "hattrick": 0
-  }}
-]
+            # Process bowling
+            for bowl in innings.get("bowling", []):
+                name = bowl["bowler"]["name"]
+                if name not in players:
+                    players[name] = {"player": name, "role": get_player_role(name),
+                                     "runs": 0, "fours": 0, "sixes": 0, "wickets": 0,
+                                     "catches": 0, "stumpings": 0, "maidens": 0,
+                                     "dismissal": "DNB", "mom": 0, "hattrick": 0}
+                players[name]["wickets"] = max(players[name]["wickets"], bowl.get("w", 0))
+                players[name]["maidens"] = max(players[name]["maidens"], bowl.get("m", 0))
 
-Rules:
-- ONE entry per player only
-- dismissal = "DNB" if did not bat, "Not Out" if not out, "Out" if dismissed
-- catches = catches taken in the field
-- Return ONLY the JSON array, nothing else"""
+            # Process catching
+            for catch in innings.get("catching", []):
+                name = catch["catcher"]["name"]
+                # Handle alt names
+                alt_names = catch["catcher"].get("altnames", [])
+                # Find best matching name in our players dict
+                matched_name = name
+                if name not in players:
+                    for alt in alt_names:
+                        if alt in players:
+                            matched_name = alt
+                            break
+                if matched_name not in players:
+                    players[matched_name] = {"player": matched_name, "role": get_player_role(matched_name),
+                                             "runs": 0, "fours": 0, "sixes": 0, "wickets": 0,
+                                             "catches": 0, "stumpings": 0, "maidens": 0,
+                                             "dismissal": "DNB", "mom": 0, "hattrick": 0}
+                players[matched_name]["catches"] += catch.get("catch", 0)
+                players[matched_name]["stumpings"] += catch.get("stumped", 0)
 
-        ai_response = client.messages.create(
-            model="claude-opus-4-5",
-            max_tokens=3000,
-            messages=[{"role": "user", "content": prompt}]
-        )
-
-        raw = ai_response.content[0].text.strip()
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-        raw = raw.strip()
-
-        players_data = json.loads(raw)
+        # Convert to list and process points
+        players_data = list(players.values())
         new_entries = process_players(players_data, match_name, mom_player)
         save_stats(new_entries)
 
@@ -995,8 +1002,6 @@ Rules:
             "entries": new_entries
         })
 
-    except json.JSONDecodeError as e:
-        return jsonify({"error": f"Could not parse scorecard: {str(e)}"}), 500
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
