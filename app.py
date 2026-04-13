@@ -239,7 +239,84 @@ TEAMS = {
     ]},
 }
 
-# ─── SCORING LOGIC ────────────────────────────────────────────────────────────
+# ─── MATCH ORDER ──────────────────────────────────────────────────────────────
+# Maps match name (as stored in DB) to match number for correct display ordering
+MATCH_ORDER = {
+    "RCB vs SRH": 1,
+    "MI vs KKR": 2,
+    "RR vs CSK": 3,
+    "PBKS vs GT": 4,
+    "LSG vs DC": 5,
+    "KKR vs SRH": 6,
+    "RR vs MI": 7,
+    "DC vs MI": 8,
+    "GT vs RR": 9,
+    "SRH vs LSG": 10,
+    "RCB vs CSK": 11,
+    "KKR vs PBKS": 12,
+    "DC vs GT": 14,
+    "KKR vs LSG": 15,
+    "RR vs RCB": 16,
+    "PBKS vs SRH": 17,
+    "CSK vs DC": 18,
+    "LSG vs GT": 19,
+    "MI vs RCB": 20,
+    "SRH vs RR": 21,
+    "CSK vs KKR": 22,
+    "RCB vs LSG": 23,
+    "MI vs PBKS": 24,
+    "GT vs KKR": 25,
+    "RCB vs DC": 26,
+    "SRH vs CSK": 27,
+    "KKR vs RR": 28,
+    "PBKS vs LSG": 29,
+    "GT vs MI": 30,
+    "SRH vs DC": 31,
+    "LSG vs RR": 32,
+    "MI vs CSK": 33,
+    "RCB vs GT": 34,
+    "DC vs PBKS": 35,
+    "RR vs SRH": 36,
+    "GT vs CSK": 37,
+    "LSG vs KKR": 38,
+    "DC vs RCB": 39,
+    "PBKS vs RR": 40,
+    "MI vs SRH": 41,
+    "GT vs RCB": 42,
+    "RR vs DC": 43,
+    "CSK vs MI": 44,
+    "SRH vs KKR": 45,
+    "GT vs PBKS": 46,
+    "MI vs LSG": 47,
+    "DC vs CSK": 48,
+    "SRH vs PBKS": 49,
+    "LSG vs RCB": 50,
+    "DC vs KKR": 51,
+    "RR vs GT": 52,
+    "CSK vs LSG": 53,
+    "RCB vs MI": 54,
+    "PBKS vs DC": 55,
+    "GT vs SRH": 56,
+    "RCB vs KKR": 57,
+    "PBKS vs MI": 58,
+    "LSG vs CSK": 59,
+    "KKR vs GT": 60,
+    "PBKS vs RCB": 61,
+    "DC vs RR": 62,
+    "CSK vs SRH": 63,
+    "RR vs LSG": 64,
+    "KKR vs MI": 65,
+    "CSK vs GT": 66,
+    "SRH vs RCB": 67,
+    "LSG vs PBKS": 68,
+    "MI vs RR": 69,
+    "KKR vs DC": 70,
+}
+
+def get_match_order(match_name):
+    return MATCH_ORDER.get(match_name, 999)
+
+
 
 def calculate_points(player_data):
     """Calculate fantasy points for a player's match performance."""
@@ -334,7 +411,7 @@ def get_leaderboard():
             deduped[key] = stat
     all_stats = list(deduped.values())
 
-    matches_played = sorted(list(set(s["match"] for s in all_stats)))
+    matches_played = sorted(list(set(s["match"] for s in all_stats)), key=get_match_order)
 
     # Build per-owner per-match totals
     owner_match_pts = {owner: {} for owner in TEAMS}
@@ -449,11 +526,12 @@ def api_players():
         player_totals[name]["total_pts"] += stat["pts"]
         player_totals[name]["total_runs"] += stat.get("runs", 0)
         player_totals[name]["total_wkts"] += stat.get("wickets", 0)
-        player_totals[name]["matches"].append({"match": stat["match"], "pts": stat["pts"], "runs": stat.get("runs", 0), "wkts": stat.get("wickets", 0), "mom": stat.get("mom", 0)})
+        player_totals[name]["matches"].append({"match": stat["match"], "match_num": get_match_order(stat["match"]), "pts": stat["pts"], "runs": stat.get("runs", 0), "wkts": stat.get("wickets", 0), "mom": stat.get("mom", 0)})
 
     players = sorted(player_totals.values(), key=lambda x: x["total_pts"], reverse=True)
     for p in players:
         p["total_pts"] = round(p["total_pts"], 1)
+        p["matches"] = sorted(p["matches"], key=lambda m: m["match_num"])
     return jsonify({"players": players})
 
 @app.route("/api/upload-scorecard-text", methods=["POST"])
@@ -1000,6 +1078,27 @@ def fetch_scorecard():
             "entries": new_entries
         })
 
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/delete-match", methods=["POST"])
+def delete_match():
+    admin_key = request.headers.get("X-Admin-Key", "")
+    if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.get_json()
+    match_name = data.get("match_name", "").strip()
+    if not match_name:
+        return jsonify({"error": "Match name required"}), 400
+
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM match_stats WHERE match=%s", (match_name,))
+                deleted = cur.rowcount
+            conn.commit()
+        return jsonify({"success": True, "match": match_name, "rows_deleted": deleted})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
