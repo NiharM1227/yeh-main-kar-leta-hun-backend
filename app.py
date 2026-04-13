@@ -892,10 +892,113 @@ def api_cvc_change():
 def api_cvc_changes():
     return jsonify({"changes": get_all_cvc_changes()})
 
+@app.route("/api/matches")
 def api_matches():
     all_stats = get_all_stats()
     matches = sorted(list(set(s["match"] for s in all_stats)))
     return jsonify({"matches": matches})
+
+@app.route("/api/fetch-scorecard", methods=["POST"])
+def fetch_scorecard():
+    """Fetch scorecard from CricketData.org API and process it."""
+    admin_key = request.headers.get("X-Admin-Key", "")
+    if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.get_json()
+    match_name = data.get("match_name", "").strip()
+    match_id = data.get("match_id", "").strip()
+    mom_player = data.get("mom_player", "").strip()
+
+    if not match_name or not match_id:
+        return jsonify({"error": "Match name and match ID required"}), 400
+
+    api_key = os.environ.get("CRICKETDATA_API_KEY", "")
+    if not api_key:
+        return jsonify({"error": "CricketData API key not configured"}), 500
+
+    try:
+        # Fetch scorecard from CricketData
+        url = f"https://api.cricapi.com/v1/match_scorecard?apikey={api_key}&id={match_id}"
+        response = req.get(url, timeout=15)
+        response.raise_for_status()
+        result = response.json()
+
+        if result.get("status") != "success":
+            return jsonify({"error": f"API error: {result.get('message', 'Unknown error')}"}), 500
+
+        scorecard = result.get("data", {})
+
+        # Build known players context
+        all_players = []
+        for team in TEAMS.values():
+            for p in team["players"]:
+                all_players.append(f"{p['name']} ({p['role']})")
+        players_context = "\n".join(all_players)
+
+        # Pass raw scorecard JSON to Claude for extraction
+        prompt = f"""You are processing an IPL cricket scorecard from CricketData API. Extract ALL player statistics.
+
+Known fantasy league players (use for name matching):
+{players_context}
+
+Scorecard JSON:
+{json.dumps(scorecard, indent=2)[:12000]}
+
+CRITICAL: Return ONLY ONE entry per player. For players who bat AND bowl, merge into one entry.
+
+Return a JSON array with this exact structure:
+[
+  {{
+    "player": "exact player name",
+    "role": "Batsman" or "Bowler" or "All-rounder",
+    "runs": number,
+    "fours": number,
+    "sixes": number,
+    "wickets": number,
+    "catches": number,
+    "stumpings": number,
+    "maidens": number,
+    "dismissal": "Out" or "Not Out" or "DNB",
+    "mom": 0,
+    "hattrick": 0
+  }}
+]
+
+Rules:
+- ONE entry per player only
+- dismissal = "DNB" if did not bat, "Not Out" if not out, "Out" if dismissed
+- catches = catches taken in the field
+- Return ONLY the JSON array, nothing else"""
+
+        ai_response = client.messages.create(
+            model="claude-opus-4-5",
+            max_tokens=3000,
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        raw = ai_response.content[0].text.strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        raw = raw.strip()
+
+        players_data = json.loads(raw)
+        new_entries = process_players(players_data, match_name, mom_player)
+        save_stats(new_entries)
+
+        return jsonify({
+            "success": True,
+            "match": match_name,
+            "players_processed": len(new_entries),
+            "entries": new_entries
+        })
+
+    except json.JSONDecodeError as e:
+        return jsonify({"error": f"Could not parse scorecard: {str(e)}"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/adjust-points", methods=["POST"])
 def adjust_points():
