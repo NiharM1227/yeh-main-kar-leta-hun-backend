@@ -210,7 +210,7 @@ TEAMS = {
     "Nihar Mehta": {"players": [
         {"name":"KL Rahul","role":"Batsman","ipl":"DC","cvc":"C"},
         {"name":"Aiden Markram","role":"All-rounder","ipl":"LSG","cvc":"VC"},
-        {"name":"Vaibhav Suryavanshi","role":"Batsman","ipl":"RR","cvc":None},
+        {"name":"Vaibhav Sooryavanshi","role":"Batsman","ipl":"RR","cvc":None},
         {"name":"Shivam Dube","role":"All-rounder","ipl":"CSK","cvc":None},
         {"name":"Ajinkya Rahane","role":"Batsman","ipl":"KKR","cvc":None},
         {"name":"Sarfaraz Khan","role":"Batsman","ipl":"CSK","cvc":None},
@@ -226,7 +226,7 @@ TEAMS = {
         {"name":"Suryakumar Yadav","role":"Batsman","ipl":"MI","cvc":"C"},
         {"name":"Varun Chakravarthy","role":"Bowler","ipl":"KKR","cvc":"VC"},
         {"name":"Jos Buttler","role":"Batsman","ipl":"GT","cvc":None},
-        {"name":"Phil Salt","role":"Batsman","ipl":"RCB","cvc":None},
+        {"name":"Philip Salt","role":"Batsman","ipl":"RCB","cvc":None},
         {"name":"Trent Boult","role":"Bowler","ipl":"MI","cvc":None},
         {"name":"Rashid Khan","role":"Bowler","ipl":"GT","cvc":None},
         {"name":"Will Jacks","role":"All-rounder","ipl":"MI","cvc":None},
@@ -390,11 +390,51 @@ def calculate_points(player_data):
     return pts
 
 
-def get_player_role(player_name):
-    """Look up role from team data."""
+# ─── NAME ALIASES ─────────────────────────────────────────────────────────────
+# Maps API name variations to the canonical name used in TEAMS
+NAME_ALIASES = {
+    "Vaibhav Sooryavanshi": "Vaibhav Sooryavanshi",
+    "Philip Salt": "Philip Salt",
+    "Phil Salt": "Philip Salt",
+    "Ravindrasinh Anirudhsinh Jadeja": "Ravindra Jadeja",
+    "Jadeja": "Ravindra Jadeja",
+    "romario shepherd": "Romario Shepherd",
+    "D payne": "David Payne",
+    "I Kishan": "Ishan Kishan",
+    "Ishan Pranav Kumar Pandey Kishan": "Ishan Kishan",
+    "Mohammed Siraj": "Mohammed Siraj",
+    "KL Rahul": "KL Rahul",
+}
+
+def normalize_name(name):
+    """Normalize a player name using aliases, then fuzzy match against known players."""
+    if name in NAME_ALIASES:
+        return NAME_ALIASES[name]
+
+    # Check if name directly matches a known player
     for team in TEAMS.values():
         for p in team["players"]:
-            if p["name"] == player_name:
+            if p["name"].lower() == name.lower():
+                return p["name"]
+
+    # Fuzzy match — check if API name words are subset of known player name or vice versa
+    name_parts = set(name.lower().split())
+    for team in TEAMS.values():
+        for p in team["players"]:
+            known_parts = set(p["name"].lower().split())
+            # If all words in the shorter name appear in the longer name
+            if name_parts.issubset(known_parts) or known_parts.issubset(name_parts):
+                return p["name"]
+
+    return name
+
+
+def get_player_role(player_name):
+    """Look up role from team data, with alias resolution."""
+    canonical = normalize_name(player_name)
+    for team in TEAMS.values():
+        for p in team["players"]:
+            if p["name"] == canonical:
                 return p["role"]
     return "Batsman"
 
@@ -417,7 +457,7 @@ def get_leaderboard():
     owner_match_pts = {owner: {} for owner in TEAMS}
 
     for stat in all_stats:
-        player_name = stat["player"]
+        player_name = normalize_name(stat["player"])
         match = stat["match"]
         raw_pts = stat["pts"]
 
@@ -477,7 +517,7 @@ def api_teams():
     all_stats = get_all_stats()
     player_totals = {}
     for stat in all_stats:
-        name = stat["player"]
+        name = normalize_name(stat["player"])
         if name not in player_totals:
             player_totals[name] = {"name": name, "role": stat["role"], "total_pts": 0, "total_runs": 0, "total_wkts": 0, "matches": []}
         player_totals[name]["total_pts"] += stat["pts"]
