@@ -329,6 +329,16 @@
 let lbData = [], matchesList = [], teamsData = {}, playersData = [], cvcChanges = [];
 let roleFilter = 'All', matchFilter = 'All';
 
+const MATCH_ORDER_FE = ["RCB vs SRH","MI vs KKR","RR vs CSK","PBKS vs GT","LSG vs DC","KKR vs SRH","CSK vs PBKS","MI vs DC","RR vs GT","SRH vs LSG","RCB vs CSK","KKR vs PBKS","RR vs MI","DC vs GT","KKR vs LSG","RR vs RCB","PBKS vs SRH","CSK vs DC","LSG vs GT","MI vs RCB","SRH vs RR","CSK vs KKR","RCB vs LSG","MI vs PBKS","GT vs KKR","RCB vs DC","SRH vs CSK","KKR vs RR","PBKS vs LSG","GT vs MI","SRH vs DC","LSG vs RR","MI vs CSK","RCB vs GT","DC vs PBKS","RR vs SRH","GT vs CSK","LSG vs KKR","DC vs RCB","PBKS vs RR","MI vs SRH","GT vs RCB","RR vs DC","CSK vs MI","SRH vs KKR","GT vs PBKS","MI vs LSG","DC vs CSK","SRH vs PBKS","LSG vs RCB","DC vs KKR","RR vs GT","CSK vs LSG","RCB vs MI","PBKS vs DC","GT vs SRH","RCB vs KKR","PBKS vs MI","LSG vs CSK","KKR vs GT","PBKS vs RCB","DC vs RR","CSK vs SRH","RR vs LSG","KKR vs MI","CSK vs GT","SRH vs RCB","LSG vs PBKS","MI vs RR","KKR vs DC"];
+
+function sortMatches(matches) {
+  return [...matches].sort((a, b) => {
+    const ai = MATCH_ORDER_FE.indexOf(a);
+    const bi = MATCH_ORDER_FE.indexOf(b);
+    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+  });
+}
+
 async function loadAll() {
   try {
     const [lbRes, teamsRes, playersRes] = await Promise.all([
@@ -338,7 +348,7 @@ async function loadAll() {
     const teams = await teamsRes.json();
     const players = await playersRes.json();
     lbData = lb.leaderboard;
-    matchesList = lb.matches;
+    matchesList = sortMatches(lb.matches);
     cvcChanges = lb.cvc_changes || [];
     teamsData = teams.teams;
     playersData = players.players;
