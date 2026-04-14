@@ -235,6 +235,61 @@ async function adjustPoints() {
 </script>
 
 <div style="border-top:1px solid #2a2a3d;margin:28px 0 24px;"></div>
+<h2 style="color:#a78bfa;font-size:18px;margin-bottom:4px;">✏️ Rename Match</h2>
+<p>Fix a match name in the database to match the correct ordering.</p>
+
+<label>Admin Key</label>
+<input type="password" id="ren-admin-key" placeholder="Enter admin key">
+
+<label>Current Match Name (in DB)</label>
+<input type="text" id="ren-old-name" placeholder="e.g. GT vs DC">
+
+<label>Correct Match Name</label>
+<input type="text" id="ren-new-name" placeholder="e.g. DC vs GT">
+
+<button class="btn" id="ren-btn" onclick="renameMatch()" style="background:#a78bfa;color:#000;">Rename Match</button>
+<div class="result" id="ren-result" style="margin-top:16px;display:none;"></div>
+
+<script>
+async function renameMatch() {
+  const key = document.getElementById('ren-admin-key').value.trim();
+  const oldName = document.getElementById('ren-old-name').value.trim();
+  const newName = document.getElementById('ren-new-name').value.trim();
+  const resultEl = document.getElementById('ren-result');
+  const btn = document.getElementById('ren-btn');
+
+  if (!key) { alert('Enter admin key'); return; }
+  if (!oldName || !newName) { alert('Enter both match names'); return; }
+
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/rename-match', {
+      method: 'POST',
+      headers: { 'X-Admin-Key': key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ old_name: oldName, new_name: newName })
+    });
+    const data = await res.json();
+    btn.disabled = false;
+    resultEl.style.display = 'block';
+    if (data.success) {
+      resultEl.className = 'result success';
+      resultEl.innerHTML = `<h3>✅ Done</h3>
+        <div class="player-row"><span>${data.old_name}</span><span>→ ${data.new_name}</span></div>
+        <div class="player-row"><span>Rows updated</span><span>${data.rows_updated}</span></div>`;
+    } else {
+      resultEl.className = 'result error';
+      resultEl.innerHTML = `<h3>❌ Error</h3><p>${data.error}</p>`;
+    }
+  } catch(err) {
+    btn.disabled = false;
+    resultEl.style.display = 'block';
+    resultEl.className = 'result error';
+    resultEl.innerHTML = `<h3>❌ Connection error</h3><p>${err.message}</p>`;
+  }
+}
+</script>
+
+<div style="border-top:1px solid #2a2a3d;margin:28px 0 24px;"></div>
 <h2 style="color:#ef4444;font-size:18px;margin-bottom:4px;">🗑️ Delete Match Data</h2>
 <p>Delete all player data for a match so you can re-fetch it cleanly.</p>
 
