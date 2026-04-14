@@ -171,7 +171,7 @@ TEAMS = {
         {"name":"Pat Cummins","role":"Bowler","ipl":"SRH","cvc":None},
         {"name":"Dhruv Jurel","role":"Batsman","ipl":"RR","cvc":None},
         {"name":"Jacob Bethell","role":"All-rounder","ipl":"RCB","cvc":None},
-        {"name":"Harshal Patel","role":"Bowler","ipl":"RCB","cvc":None},
+        {"name":"Harshal Patel","role":"Bowler","ipl":"SRH","cvc":None},
         {"name":"Marcus Stoinis","role":"All-rounder","ipl":"PK","cvc":None},
         {"name":"Naman Dhir","role":"Batsman","ipl":"MI","cvc":None},
         {"name":"Shardul Thakur","role":"All-rounder","ipl":"MI","cvc":None},
@@ -1164,6 +1164,29 @@ def delete_cvc():
                 deleted = cur.rowcount
             conn.commit()
         return jsonify({"success": True, "deleted": deleted})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/rename-match", methods=["POST"])
+def rename_match():
+    admin_key = request.headers.get("X-Admin-Key", "")
+    if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.get_json()
+    old_name = data.get("old_name", "").strip()
+    new_name = data.get("new_name", "").strip()
+
+    if not old_name or not new_name:
+        return jsonify({"error": "Both old and new match names required"}), 400
+
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("UPDATE match_stats SET match=%s WHERE match=%s", (new_name, old_name))
+                updated = cur.rowcount
+            conn.commit()
+        return jsonify({"success": True, "old_name": old_name, "new_name": new_name, "rows_updated": updated})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
