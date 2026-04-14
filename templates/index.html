@@ -388,9 +388,18 @@ function renderLeaderboard() {
   }).join('');
 }
 
+function getMatchNum(matchName) {
+  let idx = MATCH_ORDER_FE.indexOf(matchName);
+  if (idx === -1) {
+    const p = matchName.split(' vs ');
+    if (p.length === 2) idx = MATCH_ORDER_FE.indexOf(`${p[1]} vs ${p[0]}`);
+  }
+  return idx === -1 ? matchName : `M${idx + 1}`;
+}
+
 function renderMatchTable() {
   const table = document.getElementById('match-table');
-  let html = `<thead><tr><th>Team</th>${matchesList.map(m=>`<th>${m.replace(' vs ','<br>')}</th>`).join('')}<th>Total</th></tr></thead><tbody>`;
+  let html = `<thead><tr><th>Team</th>${matchesList.map(m=>`<th title="${m}">${getMatchNum(m)}</th>`).join('')}<th>Total</th></tr></thead><tbody>`;
   lbData.forEach(t => {
     html += `<tr><td>${t.name}</td>${matchesList.map(m => {
       const p = t.match_pts[m] || 0;
