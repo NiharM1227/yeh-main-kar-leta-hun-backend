@@ -13,6 +13,86 @@
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; max-width: 480px; margin: 0 auto; }
+
+  /* ── LOGIN SCREEN ── */
+  #login-screen {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 24px;
+    background: linear-gradient(160deg, #0a0a0f 0%, #0d0d1f 50%, #0a1a0f 100%);
+  }
+  #login-screen .ipl-logo {
+    width: 260px;
+    max-width: 80vw;
+    border-radius: 16px;
+    margin-bottom: 32px;
+    box-shadow: 0 8px 40px rgba(249,115,22,0.15);
+  }
+  #login-screen h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 32px;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-align: center;
+    margin-bottom: 6px;
+    line-height: 1;
+  }
+  #login-screen p {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-align: center;
+    margin-bottom: 40px;
+  }
+  #login-screen input {
+    width: 100%;
+    background: #12121a;
+    border: 1px solid #2a2a3d;
+    color: var(--text);
+    padding: 16px 18px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 4px;
+    text-align: center;
+    margin-bottom: 16px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  #login-screen input:focus { border-color: var(--accent); }
+  #login-screen input.error { border-color: var(--red); animation: shake 0.3s ease; }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-8px)} 75%{transform:translateX(8px)} }
+  #login-screen button {
+    width: 100%;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    padding: 16px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 700;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+  #login-screen button:active { transform: scale(0.98); opacity: 0.9; }
+  #login-error {
+    color: var(--red);
+    font-size: 13px;
+    text-align: center;
+    margin-top: 12px;
+    font-family: 'DM Mono', monospace;
+    display: none;
+  }
+
+  /* ── MAIN APP ── */
+  #main-app { display: none; }
   .header { background: linear-gradient(135deg, #0f0f1a 0%, #1a0f2e 50%, #0f1a1a 100%); padding: 20px 20px 0; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
   .header-top { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
   .trophy-icon { font-size: 28px; animation: pulse 2s ease-in-out infinite; }
@@ -131,6 +211,20 @@
 </style>
 </head>
 <body>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <img class="ipl-logo" src="https://upload.wikimedia.org/wikipedia/en/thumb/8/8b/Indian_Premier_League_Logo.svg/800px-Indian_Premier_League_Logo.svg.png" alt="IPL 2026" onerror="this.style.display='none'">
+  <h1>Yeh Main Kar Leta Hu</h1>
+  <p>IPL 2026 Fantasy League</p>
+  <input type="password" id="access-code" placeholder="ENTER ACCESS CODE" maxlength="20"
+    onkeydown="if(event.key==='Enter') checkLogin()">
+  <button onclick="checkLogin()">Enter</button>
+  <div id="login-error">Wrong code. Try again.</div>
+</div>
+
+<!-- MAIN APP -->
+<div id="main-app">
 <div class="header">
   <div class="header-top">
     <div class="trophy-icon">🏆</div>
@@ -539,7 +633,36 @@ function renderBanterCard(match, text) {
   </div>`;
 }
 
-loadAll();
+// Don't call loadAll here - called after login
+</script>
+</div><!-- end main-app -->
+
+<script>
+const ACCESS_CODE = 'IPL2026';
+
+function checkLogin() {
+  const input = document.getElementById('access-code');
+  const error = document.getElementById('login-error');
+  if (input.value.toUpperCase().trim() === ACCESS_CODE) {
+    sessionStorage.setItem('ymklh_auth', '1');
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('main-app').style.display = 'block';
+    loadAll();
+  } else {
+    input.classList.add('error');
+    error.style.display = 'block';
+    setTimeout(() => input.classList.remove('error'), 400);
+    input.value = '';
+    input.focus();
+  }
+}
+
+// Auto-login if already authenticated this session
+if (sessionStorage.getItem('ymklh_auth') === '1') {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('main-app').style.display = 'block';
+  loadAll();
+} 
 </script>
 </body>
 </html>
