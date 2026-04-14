@@ -179,9 +179,9 @@ TEAMS = {
     ]},
     "Vikram Jumani": {"players": [
         {"name":"Yashasvi Jaiswal","role":"Batsman","ipl":"RR","cvc":"C"},
-        {"name":"Nicholas Pooran","role":"Batsman","ipl":"LSG","cvc":"VC"},
+        {"name":"Nicholas Pooran","role":"Batsman","ipl":"LSG","cvc":None},
         {"name":"Shreyas Iyer","role":"Batsman","ipl":"PK","cvc":None},
-        {"name":"Priyansh Arya","role":"Batsman","ipl":"PK","cvc":None},
+        {"name":"Priyansh Arya","role":"Batsman","ipl":"PK","cvc":"VC"},
         {"name":"Shimron Hetmyer","role":"Batsman","ipl":"RR","cvc":None},
         {"name":"Ravi Bishnoi","role":"Bowler","ipl":"RR","cvc":None},
         {"name":"Pathum Nissanka","role":"Batsman","ipl":"DC","cvc":None},
@@ -230,7 +230,7 @@ TEAMS = {
         {"name":"Trent Boult","role":"Bowler","ipl":"MI","cvc":None},
         {"name":"Rashid Khan","role":"Bowler","ipl":"GT","cvc":None},
         {"name":"Will Jacks","role":"All-rounder","ipl":"MI","cvc":None},
-        {"name":"Mohammad Shami","role":"Bowler","ipl":"LSG","cvc":None},
+        {"name":"Mohammed Shami","role":"Bowler","ipl":"LSG","cvc":None},
         {"name":"Rahul Tripathi","role":"Batsman","ipl":"KKR","cvc":None},
         {"name":"Noor Ahmad","role":"Bowler","ipl":"CSK","cvc":None},
         {"name":"Venkatesh Iyer","role":"All-rounder","ipl":"RCB","cvc":None},
@@ -248,12 +248,13 @@ MATCH_ORDER = {
     "PBKS vs GT": 4,
     "LSG vs DC": 5,
     "KKR vs SRH": 6,
-    "RR vs MI": 7,
-    "DC vs MI": 8,
-    "GT vs RR": 9,
+    "CSK vs PBKS": 7,
+    "MI vs DC": 8,
+    "RR vs GT": 9,
     "SRH vs LSG": 10,
     "RCB vs CSK": 11,
     "KKR vs PBKS": 12,
+    "RR vs MI": 13,
     "DC vs GT": 14,
     "KKR vs LSG": 15,
     "RR vs RCB": 16,
@@ -313,8 +314,86 @@ MATCH_ORDER = {
     "KKR vs DC": 70,
 }
 
+MATCH_DATES = {
+    "RCB vs SRH": "2026-03-28",
+    "MI vs KKR": "2026-03-29",
+    "RR vs CSK": "2026-03-30",
+    "PBKS vs GT": "2026-03-31",
+    "LSG vs DC": "2026-04-01",
+    "KKR vs SRH": "2026-04-02",
+    "CSK vs PBKS": "2026-04-03",
+    "MI vs DC": "2026-04-04",
+    "RR vs GT": "2026-04-04",
+    "SRH vs LSG": "2026-04-05",
+    "RCB vs CSK": "2026-04-05",
+    "KKR vs PBKS": "2026-04-06",
+    "RR vs MI": "2026-04-07",
+    "DC vs GT": "2026-04-08",
+    "KKR vs LSG": "2026-04-09",
+    "RR vs RCB": "2026-04-10",
+    "PBKS vs SRH": "2026-04-11",
+    "CSK vs DC": "2026-04-11",
+    "LSG vs GT": "2026-04-12",
+    "MI vs RCB": "2026-04-12",
+    "SRH vs RR": "2026-04-13",
+    "CSK vs KKR": "2026-04-14",
+    "RCB vs LSG": "2026-04-15",
+    "MI vs PBKS": "2026-04-16",
+    "GT vs KKR": "2026-04-17",
+    "RCB vs DC": "2026-04-18",
+    "SRH vs CSK": "2026-04-18",
+    "KKR vs RR": "2026-04-19",
+    "PBKS vs LSG": "2026-04-19",
+    "GT vs MI": "2026-04-20",
+    "SRH vs DC": "2026-04-21",
+    "LSG vs RR": "2026-04-22",
+    "MI vs CSK": "2026-04-23",
+    "RCB vs GT": "2026-04-24",
+    "DC vs PBKS": "2026-04-25",
+    "RR vs SRH": "2026-04-25",
+    "GT vs CSK": "2026-04-26",
+    "LSG vs KKR": "2026-04-26",
+    "DC vs RCB": "2026-04-27",
+    "PBKS vs RR": "2026-04-28",
+    "MI vs SRH": "2026-04-29",
+    "GT vs RCB": "2026-04-30",
+    "RR vs DC": "2026-05-01",
+    "CSK vs MI": "2026-05-02",
+    "SRH vs KKR": "2026-05-03",
+    "GT vs PBKS": "2026-05-03",
+    "MI vs LSG": "2026-05-04",
+    "DC vs CSK": "2026-05-05",
+    "SRH vs PBKS": "2026-05-06",
+    "LSG vs RCB": "2026-05-07",
+    "DC vs KKR": "2026-05-08",
+    "RR vs GT": "2026-05-09",
+    "CSK vs LSG": "2026-05-10",
+    "RCB vs MI": "2026-05-10",
+    "PBKS vs DC": "2026-05-11",
+    "GT vs SRH": "2026-05-12",
+    "RCB vs KKR": "2026-05-13",
+    "PBKS vs MI": "2026-05-14",
+    "LSG vs CSK": "2026-05-15",
+    "KKR vs GT": "2026-05-16",
+    "PBKS vs RCB": "2026-05-17",
+    "DC vs RR": "2026-05-17",
+    "CSK vs SRH": "2026-05-18",
+    "RR vs LSG": "2026-05-19",
+    "KKR vs MI": "2026-05-20",
+    "CSK vs GT": "2026-05-21",
+    "SRH vs RCB": "2026-05-22",
+    "LSG vs PBKS": "2026-05-23",
+    "MI vs RR": "2026-05-24",
+    "KKR vs DC": "2026-05-24",
+}
+
+def get_match_date(match_name):
+    return MATCH_DATES.get(match_name, "2026-01-01")
+
 def get_match_order(match_name):
     return MATCH_ORDER.get(match_name, 999)
+
+
 
 
 
@@ -456,6 +535,49 @@ def get_leaderboard():
     # Build per-owner per-match totals
     owner_match_pts = {owner: {} for owner in TEAMS}
 
+    # Build a date-aware CVC lookup per team
+    # For each team, build list of (date, type, player) changes sorted by date
+    cvc_history = {}
+    for change in cvc_changes:
+        team = change["team"]
+        if team not in cvc_history:
+            cvc_history[team] = []
+        cvc_history[team].append(change)
+
+    def get_multiplier(owner, player_name, match_name):
+        """Get the correct C/VC multiplier for a player in a match based on date."""
+        match_date = get_match_date(match_name)
+        team = TEAMS[owner]
+
+        # Start with current CVC assignment
+        current_cvc = None
+        for p in team["players"]:
+            if p["name"] == player_name:
+                current_cvc = p["cvc"]
+                break
+
+        # Apply CVC changes in reverse — if a change happened AFTER match date,
+        # undo it to find what the CVC was at match time
+        if owner in cvc_history:
+            # Sort changes by date descending
+            changes = sorted(cvc_history[owner], key=lambda c: c["date"], reverse=True)
+            for change in changes:
+                if change["date"] > match_date:
+                    # This change happened after the match — reverse it
+                    change_type = change["type"]
+                    if current_cvc == change_type and player_name == change["to_player"]:
+                        # Player was changed TO this role after match — they weren't in this role during match
+                        current_cvc = None
+                    elif player_name == change["from_player"] and current_cvc is None:
+                        # Player was changed FROM this role after match — they were in this role during match
+                        current_cvc = change_type
+
+        if current_cvc == "C":
+            return 2
+        elif current_cvc == "VC":
+            return 1.5
+        return 1
+
     for stat in all_stats:
         player_name = normalize_name(stat["player"])
         match = stat["match"]
@@ -464,7 +586,7 @@ def get_leaderboard():
         for owner, team in TEAMS.items():
             for p in team["players"]:
                 if p["name"] == player_name:
-                    mult = 2 if p["cvc"] == "C" else 1.5 if p["cvc"] == "VC" else 1
+                    mult = get_multiplier(owner, player_name, match)
                     if match not in owner_match_pts[owner]:
                         owner_match_pts[owner][match] = 0
                     owner_match_pts[owner][match] += raw_pts * mult
@@ -1005,6 +1127,27 @@ def api_cvc_change():
     })
 
     return jsonify({"success": True})
+
+@app.route("/api/delete-cvc", methods=["POST"])
+def delete_cvc():
+    admin_key = request.headers.get("X-Admin-Key", "")
+    if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.get_json()
+    cvc_id = data.get("id")
+    if not cvc_id:
+        return jsonify({"error": "ID required"}), 400
+
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM cvc_changes WHERE id=%s", (cvc_id,))
+                deleted = cur.rowcount
+            conn.commit()
+        return jsonify({"success": True, "deleted": deleted})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/cvc-changes")
 def api_cvc_changes():
