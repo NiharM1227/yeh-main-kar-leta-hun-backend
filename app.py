@@ -388,10 +388,24 @@ MATCH_DATES = {
 }
 
 def get_match_date(match_name):
-    return MATCH_DATES.get(match_name, "2026-01-01")
+    if match_name in MATCH_DATES:
+        return MATCH_DATES[match_name]
+    # Try reversed team order
+    parts = match_name.split(" vs ")
+    if len(parts) == 2:
+        reversed_name = f"{parts[1]} vs {parts[0]}"
+        return MATCH_DATES.get(reversed_name, "2026-01-01")
+    return "2026-01-01"
 
 def get_match_order(match_name):
-    return MATCH_ORDER.get(match_name, 999)
+    if match_name in MATCH_ORDER:
+        return MATCH_ORDER[match_name]
+    # Try reversed team order
+    parts = match_name.split(" vs ")
+    if len(parts) == 2:
+        reversed_name = f"{parts[1]} vs {parts[0]}"
+        return MATCH_ORDER.get(reversed_name, 999)
+    return 999
 
 
 
