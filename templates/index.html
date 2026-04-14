@@ -266,6 +266,8 @@
     <div id="banter-list"><div class="loading">Loading banter...</div></div>
   </div>
 
+  <div class="section" id="tab-players">
+    <div class="section-label">Players</div>
     <input type="text" class="search-bar" placeholder="Search player..." id="player-search" oninput="filterPlayers()">
     <div class="filter-row">
       <button class="filter-btn active" onclick="setRoleFilter('All',this)">All</button>
@@ -441,7 +443,7 @@ function renderTeamDetail(owner) {
               <div>
                 <span style="color:var(--red);font-weight:600">${c.type === 'C' ? 'Captain' : 'Vice Captain'} change</span>
                 <span style="color:var(--muted);font-family:'DM Mono';font-size:10px;margin-left:6px">${c.date}</span>
-                <div style="color:var(--muted);font-size:11px;margin-top:2px">${c.from} → ${c.to}</div>
+                <div style="color:var(--muted);font-size:11px;margin-top:2px">${c.from_player} → ${c.to_player}</div>
               </div>
               <span style="color:var(--red);font-family:'DM Mono';font-weight:600">${c.penalty} pts</span>
             </div>
