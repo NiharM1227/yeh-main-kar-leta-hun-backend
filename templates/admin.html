@@ -34,46 +34,14 @@
 <p>Admin panel — manage match data and points</p>
 
 <div style="background:#1a1a26;border-radius:12px;padding:16px;margin-bottom:16px;border:1px solid #f97316">
-  <label style="color:#f97316;margin-bottom:8px">⚡ Option 1 — Fetch from CricketData API (recommended)</label>
+  <label style="color:#f97316;margin-bottom:8px">⚡ Fetch from CricketData API</label>
   <input type="password" id="api-admin-key" placeholder="Admin key">
   <input type="text" id="api-match-name" placeholder="Match name e.g. CSK vs MI">
-  <input type="text" id="api-match-id" placeholder="CricketData match ID (from their API)">
+  <input type="text" id="api-match-id" placeholder="CricketData match ID">
   <input type="text" id="api-mom-player" placeholder="Man of the Match (optional)">
   <button class="btn" id="api-fetch-btn" onclick="fetchFromAPI()" style="margin-bottom:8px">Fetch Scorecard from API</button>
-  <div style="color:#6b6b8a;font-size:11px">Get the match ID from cricketdata.org — search for the match and copy the ID from the URL or response</div>
   <div class="result" id="api-result" style="margin-top:12px;display:none;"></div>
 </div>
-
-<div style="text-align:center;color:#6b6b8a;font-size:12px;margin-bottom:16px">— or upload screenshots below —</div>
-
-<label>Admin Key</label>
-<input type="password" id="admin-key" placeholder="Enter admin key">
-
-<label>Match Name</label>
-<input type="text" id="match-name" placeholder="e.g. CSK vs MI">
-
-<div style="text-align:center;color:#6b6b8a;font-size:12px;margin-bottom:16px">Upload both innings screenshots below</div>
-
-<label>Innings 1 Scorecard</label>
-<div class="upload-area" id="upload-area-1" onclick="document.getElementById('image-input-1').click()">
-  <p>Tap to select innings 1 screenshot</p>
-  <img id="preview-1" class="preview">
-</div>
-<input type="file" id="image-input-1" accept="image/*" style="display:none" onchange="handleFile(this.files[0], 1)">
-
-<label>Innings 2 Scorecard</label>
-<div class="upload-area" id="upload-area-2" onclick="document.getElementById('image-input-2').click()">
-  <p>Tap to select innings 2 screenshot</p>
-  <img id="preview-2" class="preview">
-</div>
-<input type="file" id="image-input-2" accept="image/*" style="display:none" onchange="handleFile(this.files[0], 2)">
-
-<div style="color:#6b6b8a;font-size:12px;margin-bottom:16px">You can upload one or both innings at once. Add MOM points separately using the section below.</div>
-
-<button class="btn" id="upload-btn" onclick="uploadScorecard()">Process Scorecards</button>
-
-<div class="spinner" id="spinner">⏳ Reading scorecard with AI... this takes ~15 seconds</div>
-<div class="result" id="result"></div>
 
 <script>
 let selectedFiles = { 1: null, 2: null };
@@ -198,60 +166,6 @@ async function uploadScorecard() {
     }
   } catch (err) {
     spinner.style.display = 'none';
-    btn.disabled = false;
-    resultEl.style.display = 'block';
-    resultEl.className = 'result error';
-    resultEl.innerHTML = `<h3>❌ Connection error</h3><p>${err.message}</p>`;
-  }
-}
-</script>
-
-<div style="border-top:1px solid #2a2a3d;margin:28px 0 24px;"></div>
-<h2 style="color:#facc15;font-size:18px;margin-bottom:4px;">⭐ Add MOM Points</h2>
-<p>Manually add 10 Man of the Match points to any player for a specific match.</p>
-
-<label>Admin Key</label>
-<input type="password" id="mom-admin-key" placeholder="Enter admin key">
-
-<label>Player Name</label>
-<input type="text" id="mom-player-name" placeholder="e.g. Jacob Duffy">
-
-<label>Match Name</label>
-<input type="text" id="mom-match-name" placeholder="e.g. SRH vs RCB">
-
-<button class="btn" id="mom-btn" onclick="addMomPoints()" style="background:#facc15;color:#000;margin-bottom:0">Add +10 MOM Points</button>
-<div class="result" id="mom-result" style="margin-top:16px;display:none;"></div>
-
-<script>
-async function addMomPoints() {
-  const key = document.getElementById('mom-admin-key').value.trim();
-  const player = document.getElementById('mom-player-name').value.trim();
-  const match = document.getElementById('mom-match-name').value.trim();
-  const resultEl = document.getElementById('mom-result');
-  const btn = document.getElementById('mom-btn');
-
-  if (!key) { alert('Enter admin key'); return; }
-  if (!player) { alert('Enter player name'); return; }
-  if (!match) { alert('Enter match name'); return; }
-
-  btn.disabled = true;
-  try {
-    const res = await fetch('/api/add-mom', {
-      method: 'POST',
-      headers: { 'X-Admin-Key': key, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ player, match })
-    });
-    const data = await res.json();
-    btn.disabled = false;
-    resultEl.style.display = 'block';
-    if (data.success) {
-      resultEl.className = 'result success';
-      resultEl.innerHTML = `<h3>✅ Done</h3><div class="player-row"><span>${data.player}</span><span class="pts-pos">+10 MOM pts added</span></div><div class="player-row"><span>Match</span><span>${data.match}</span></div>`;
-    } else {
-      resultEl.className = 'result error';
-      resultEl.innerHTML = `<h3>❌ Error</h3><p>${data.error}</p>`;
-    }
-  } catch(err) {
     btn.disabled = false;
     resultEl.style.display = 'block';
     resultEl.className = 'result error';
@@ -457,6 +371,58 @@ async function submitCvcChange() {
     resultEl.innerHTML = `<h3>❌ Connection error</h3><p>${err.message}</p>`;
   }
 }
+</script>
+
+<div style="border-top:1px solid #2a2a3d;margin:28px 0 24px;"></div>
+<h2 style="color:#6b6b8a;font-size:18px;margin-bottom:4px;">📋 C/VC Change Log</h2>
+<p>View and delete recorded C/VC changes.</p>
+<label>Admin Key (for deletes)</label>
+<input type="password" id="log-admin-key" placeholder="Enter admin key">
+<button class="btn" onclick="loadCvcLog()" style="background:#2a2a3d;color:#f0f0f8;margin-bottom:16px;">Refresh Log</button>
+<div id="cvc-log" style="margin-top:8px;"></div>
+
+<script>
+async function loadCvcLog() {
+  const logEl = document.getElementById('cvc-log');
+  try {
+    const res = await fetch('/api/cvc-changes');
+    const data = await res.json();
+    if (!data.changes.length) {
+      logEl.innerHTML = '<p style="color:#6b6b8a;font-size:13px;">No C/VC changes recorded.</p>';
+      return;
+    }
+    logEl.innerHTML = data.changes.map(c => `
+      <div class="player-row" style="padding:10px 0;align-items:center;">
+        <span style="flex:1;font-size:13px;">
+          <strong>${c.team}</strong> — ${c.type === 'C' ? 'Captain' : 'VC'} change<br>
+          <span style="color:#6b6b8a;font-size:11px;">${c.from_player} → ${c.to_player} · ${c.date} · ${c.penalty} pts</span>
+        </span>
+        <button onclick="deleteCvc(${c.id})" style="background:#ef4444;color:#fff;border:none;padding:6px 12px;border-radius:8px;font-size:12px;cursor:pointer;">Delete</button>
+      </div>`).join('');
+  } catch(e) {
+    logEl.innerHTML = '<p style="color:#ef4444;font-size:13px;">Error loading log.</p>';
+  }
+}
+
+async function deleteCvc(id) {
+  const key = document.getElementById('log-admin-key').value.trim();
+  if (!key) { alert('Enter admin key first'); return; }
+  if (!confirm('Delete this C/VC change entry?')) return;
+  try {
+    const res = await fetch('/api/delete-cvc', {
+      method: 'POST',
+      headers: { 'X-Admin-Key': key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    });
+    const data = await res.json();
+    if (data.success) { loadCvcLog(); }
+    else { alert('Error: ' + data.error); }
+  } catch(e) {
+    alert('Connection error');
+  }
+}
+
+loadCvcLog();
 </script>
 
 </body>
