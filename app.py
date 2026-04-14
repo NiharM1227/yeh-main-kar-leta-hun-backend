@@ -472,7 +472,7 @@ def calculate_points(player_data):
 # ─── NAME ALIASES ─────────────────────────────────────────────────────────────
 # Maps API name variations to the canonical name used in TEAMS
 NAME_ALIASES = {
-    "Vaibhav Sooryavanshi": "Vaibhav Sooryavanshi",
+    "Varun Chakaravarthy": "Varun Chakravarthy",
     "Philip Salt": "Philip Salt",
     "Phil Salt": "Philip Salt",
     "Ravindrasinh Anirudhsinh Jadeja": "Ravindra Jadeja",
