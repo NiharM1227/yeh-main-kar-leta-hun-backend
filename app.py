@@ -659,8 +659,8 @@ def admin():
 
 @app.route("/api/debug-cvc")
 def debug_cvc():
-    all_stats = get_all_stats()
     cvc_changes = get_all_cvc_changes()
+    all_stats = get_all_stats()
     
     cvc_history = {}
     for change in cvc_changes:
@@ -687,14 +687,29 @@ def debug_cvc():
                     cvc_state[from_player] = change_type
         return cvc_state
 
+    # Check Nicholas Pooran and Priyansh Arya multipliers per match
+    target_matches = ["LSG vs DC", "SRH vs LSG", "KKR vs LSG", "LSG vs GT", "PBKS vs GT", "CSK vs PBKS", "SRH vs PBKS"]
     results = {}
-    for match in ["LSG vs DC", "SRH vs LSG", "KKR vs LSG", "LSG vs GT", "PBKS vs GT", "CSK vs PBKS", "SRH vs PBKS"]:
+    for match in target_matches:
         state = get_cvc_at_match_time("Vikram Jumani", match)
+        # Check multiplier for both players
+        pooran_mult = state.get("Nicholas Pooran")
+        arya_mult = state.get("Priyansh Arya")
+        # Find actual pts from stats
+        pooran_pts = next((s["pts"] for s in all_stats if normalize_name(s["player"]) == "Nicholas Pooran" and s["match"] == match), None)
+        arya_pts = next((s["pts"] for s in all_stats if normalize_name(s["player"]) == "Priyansh Arya" and s["match"] == match), None)
         results[match] = {
-            "date": get_match_date(match),
-            "cvc_state": state
+            "cvc_state": state,
+            "nicholas_pooran_cvc": pooran_mult,
+            "nicholas_pooran_pts_raw": pooran_pts,
+            "priyansh_arya_cvc": arya_mult,
+            "priyansh_arya_pts_raw": arya_pts,
         }
     
+    # Also show what names are stored in DB for these players
+    db_names = list(set(normalize_name(s["player"]) for s in all_stats if "pooran" in s["player"].lower() or "priyansh" in s["player"].lower() or "arya" in s["player"].lower()))
+    results["_db_names_found"] = db_names
+
     return jsonify(results)
 
 @app.route("/api/leaderboard")
