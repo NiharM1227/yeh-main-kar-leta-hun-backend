@@ -614,7 +614,7 @@ def get_leaderboard():
                     mult = get_multiplier(owner, player_name, match)
                     if player_name in ("Nicholas Pooran", "Priyansh Arya") and owner == "Vikram Jumani":
                         before = owner_match_pts[owner].get(match, 0)
-                        debug_log.append({"player": player_name, "match": match, "raw_pts": raw_pts, "mult": mult, "total": raw_pts * mult, "before": before})
+                        debug_log.append({"player": player_name, "match": match, "match_repr": repr(match), "raw_pts": raw_pts, "mult": mult, "total": raw_pts * mult, "before": before})
                     if match not in owner_match_pts[owner]:
                         owner_match_pts[owner][match] = 0
                     owner_match_pts[owner][match] += raw_pts * mult
@@ -645,6 +645,9 @@ def get_leaderboard():
     result.sort(key=lambda x: x["total"], reverse=True)
     for i, r in enumerate(result):
         r["rank"] = i + 1
+
+    # Add Vikram's raw match pts to debug
+    debug_log.append({"_vikram_raw_match_pts": dict(owner_match_pts.get("Vikram Jumani", {}))})
 
     return result, matches_played, cvc_changes, debug_log
 
@@ -1451,3 +1454,4 @@ def generate_banter():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
+    
