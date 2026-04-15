@@ -399,7 +399,7 @@ function getMatchNum(matchName) {
 
 function renderMatchTable() {
   const table = document.getElementById('match-table');
-  let html = `<thead><tr><th>Team</th>${matchesList.map(m=>`<th title="${m}">${getMatchNum(m)}</th>`).join('')}<th>Total</th></tr></thead><tbody>`;
+  let html = `<thead><tr><th>Team</th>${matchesList.map(m=>`<th>${getMatchNum(m)}<br><span style="font-size:9px;color:var(--muted);font-weight:400">${m.replace(' vs ','<br>')}</span></th>`).join('')}<th>Total</th></tr></thead><tbody>`;
   lbData.forEach(t => {
     html += `<tr><td>${t.name}</td>${matchesList.map(m => {
       const p = t.match_pts[m] || 0;
