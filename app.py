@@ -43,6 +43,13 @@ def init_db():
                 )
             """)
             cur.execute("""
+                CREATE TABLE IF NOT EXISTS banter_text (
+                    match VARCHAR(100) PRIMARY KEY,
+                    banter TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            cur.execute("""
                 CREATE TABLE IF NOT EXISTS banter_reactions (
                     id SERIAL PRIMARY KEY,
                     match VARCHAR(100) NOT NULL,
@@ -57,6 +64,13 @@ def init_db():
                     match VARCHAR(100) NOT NULL,
                     author VARCHAR(50) NOT NULL,
                     comment TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS banter_cache (
+                    match VARCHAR(100) PRIMARY KEY,
+                    banter TEXT NOT NULL,
                     created_at TIMESTAMP DEFAULT NOW()
                 )
             """)
@@ -1567,15 +1581,55 @@ def add_banter_comment():
 def generate_banter():
     data = request.get_json()
     prompt = data.get("prompt", "")
+    match = data.get("match", "").strip()
     if not prompt:
         return jsonify({"error": "No prompt"}), 400
+
+    # Check DB cache first
+    if match:
+        try:
+            with get_db() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT banter FROM banter_cache WHERE match=%s", (match,))
+                    row = cur.fetchone()
+                    if row:
+                        return jsonify({"banter": row["banter"], "cached": True})
+        except Exception:
+            pass
+
+    # Generate new banter
     try:
         response = client.messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=300,
             messages=[{"role": "user", "content": prompt}]
         )
-        return jsonify({"banter": response.content[0].text.strip()})
+        banter = response.content[0].text.strip()
+
+        # Save to DB cache — keep only 5 most recent
+        if match:
+            try:
+                with get_db() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute("""
+                            INSERT INTO banter_cache (match, banter)
+                            VALUES (%s, %s)
+                            ON CONFLICT (match) DO NOTHING
+                        """, (match, banter))
+                        # Delete oldest if more than 5
+                        cur.execute("""
+                            DELETE FROM banter_cache
+                            WHERE match NOT IN (
+                                SELECT match FROM banter_cache
+                                ORDER BY created_at DESC
+                                LIMIT 5
+                            )
+                        """)
+                    conn.commit()
+            except Exception:
+                pass
+
+        return jsonify({"banter": banter})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
