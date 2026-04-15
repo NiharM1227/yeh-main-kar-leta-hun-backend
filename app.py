@@ -613,10 +613,13 @@ def get_leaderboard():
                 if p["name"] == player_name:
                     mult = get_multiplier(owner, player_name, match)
                     if player_name in ("Nicholas Pooran", "Priyansh Arya") and owner == "Vikram Jumani":
-                        debug_log.append({"player": player_name, "match": match, "raw_pts": raw_pts, "mult": mult, "total": raw_pts * mult})
+                        before = owner_match_pts[owner].get(match, 0)
+                        debug_log.append({"player": player_name, "match": match, "raw_pts": raw_pts, "mult": mult, "total": raw_pts * mult, "before": before})
                     if match not in owner_match_pts[owner]:
                         owner_match_pts[owner][match] = 0
                     owner_match_pts[owner][match] += raw_pts * mult
+                    if player_name in ("Nicholas Pooran", "Priyansh Arya") and owner == "Vikram Jumani":
+                        debug_log[-1]["after"] = owner_match_pts[owner].get(match, 0)
 
     # Apply C/VC penalties
     for change in cvc_changes:
