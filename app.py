@@ -603,7 +603,7 @@ def get_leaderboard():
         return 1
 
     debug_log = []
-    for stat in all_stats:
+    for stat in list(deduped.values()):
         player_name = normalize_name(stat["player"])
         match = stat["match"]
         raw_pts = stat["pts"]
@@ -1448,4 +1448,3 @@ def generate_banter():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
-    
