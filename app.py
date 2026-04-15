@@ -559,37 +559,39 @@ def get_leaderboard():
             cvc_history[team] = []
         cvc_history[team].append(change)
 
-    def get_multiplier(owner, player_name, match_name):
-        """Get the correct C/VC multiplier for a player in a match based on date."""
+
+    def get_cvc_at_match_time(owner, match_name):
+        """Return dict of {player_name: 'C'/'VC'} as it was at match time."""
         match_date = get_match_date(match_name)
-        team = TEAMS[owner]
 
-        # Start with current CVC assignment
-        current_cvc = None
-        for p in team["players"]:
-            if p["name"] == player_name:
-                current_cvc = p["cvc"]
-                break
+        # Start with current state
+        cvc_state = {}
+        for p in TEAMS[owner]["players"]:
+            if p["cvc"] in ("C", "VC"):
+                cvc_state[p["name"]] = p["cvc"]
 
-        # Apply CVC changes in reverse — if a change happened AFTER match date,
-        # undo it to find what the CVC was at match time
+        # Reverse any changes that happened on or after match date
         if owner in cvc_history:
-            # Sort changes by date descending
             changes = sorted(cvc_history[owner], key=lambda c: c["date"], reverse=True)
             for change in changes:
                 if change["date"] >= match_date:
-                    # This change happened after the match — reverse it
                     change_type = change["type"]
-                    if current_cvc == change_type and player_name == change["to_player"]:
-                        # Player was changed TO this role after match — they weren't in this role during match
-                        current_cvc = None
-                    elif player_name == change["from_player"] and current_cvc is None:
-                        # Player was changed FROM this role after match — they were in this role during match
-                        current_cvc = change_type
+                    to_player = change["to_player"]
+                    from_player = change["from_player"]
+                    # Remove the new assignment
+                    if to_player in cvc_state and cvc_state[to_player] == change_type:
+                        del cvc_state[to_player]
+                    # Restore the old assignment
+                    cvc_state[from_player] = change_type
 
-        if current_cvc == "C":
+        return cvc_state
+
+    def get_multiplier(owner, player_name, match_name):
+        cvc_state = get_cvc_at_match_time(owner, match_name)
+        role = cvc_state.get(player_name)
+        if role == "C":
             return 2
-        elif current_cvc == "VC":
+        elif role == "VC":
             return 1.5
         return 1
 
