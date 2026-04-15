@@ -206,6 +206,21 @@
   .banter-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 12px; }
   .banter-match { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
   .banter-text { font-size: 14px; line-height: 1.6; color: var(--text); white-space: pre-wrap; }
+  .banter-reactions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .reaction-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 5px 12px; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 5px; transition: all 0.15s; color: var(--text); }
+  .reaction-btn:active { transform: scale(0.92); }
+  .reaction-btn.reacted { background: var(--accent); border-color: var(--accent); color: #000; }
+  .reaction-count { font-size: 12px; font-family: 'DM Mono', monospace; }
+  .banter-comments { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; }
+  .comment-item { display: flex; gap: 8px; margin-bottom: 8px; font-size: 13px; }
+  .comment-author { color: var(--accent); font-weight: 600; white-space: nowrap; }
+  .comment-text { color: var(--text); line-height: 1.5; }
+  .comment-input-row { display: flex; gap: 8px; margin-top: 10px; }
+  .comment-input-row input { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 8px; font-size: 13px; outline: none; font-family: 'DM Sans', sans-serif; }
+  .comment-input-row input:focus { border-color: var(--accent); }
+  .comment-name-input { width: 90px; flex-shrink: 0; }
+  .comment-text-input { flex: 1; }
+  .comment-submit { background: var(--accent); color: #000; border: none; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
   .banter-loading { text-align:center; padding: 30px; color: var(--muted); font-size: 13px; }
   .banter-empty { text-align:center; padding: 40px 20px; color: var(--muted); font-size: 13px; }
 </style>
@@ -579,7 +594,7 @@ function showTab(tab) {
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById(`tab-${tab}`).classList.add('active');
   document.querySelector(`[onclick="showTab('${tab}')"]`).classList.add('active');
-  if (tab === 'banter') loadBanter();
+  if (tab === 'banter') { loadBanterReactions().then(() => loadBanter()); }
 }
 
 // ---- BANTER ----
@@ -650,10 +665,99 @@ Worst fantasy team owner this match: ${bottomOwner[0]} (${bottomOwner[1]} pts)
 Keep it light-hearted, funny, and friendly. Use cricket banter, gentle roasts, and emojis. Don't be mean. Make it feel like friends taking the mickey out of each other. Keep it short and punchy.`;
 }
 
+const banterReactions = {};
+const banterComments = {};
+const REACTIONS = ['🔥', '💀', '😂', '👑'];
+
+async function loadBanterReactions() {
+  try {
+    const res = await fetch('/api/banter-reactions');
+    const data = await res.json();
+    Object.assign(banterReactions, data);
+  } catch(e) {}
+}
+
+async function toggleReaction(match, emoji, btn) {
+  if (!banterReactions[match]) banterReactions[match] = {};
+  const reacted = btn.classList.contains('reacted');
+  const delta = reacted ? -1 : 1;
+  btn.classList.toggle('reacted');
+  banterReactions[match][emoji] = Math.max(0, (banterReactions[match][emoji] || 0) + delta);
+  btn.querySelector('.reaction-count').textContent = banterReactions[match][emoji] || '';
+  try {
+    await fetch('/api/banter-reactions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ match, emoji, delta })
+    });
+  } catch(e) {}
+}
+
+async function addComment(match, safeMatch) {
+  const nameEl = document.getElementById(`comment-name-${safeMatch}`);
+  const textEl = document.getElementById(`comment-text-${safeMatch}`);
+  const author = nameEl.value.trim();
+  const comment = textEl.value.trim();
+  if (!author || !comment) return;
+  try {
+    const res = await fetch('/api/banter-comments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ match, author, comment })
+    });
+    const data = await res.json();
+    if (data.success) {
+      if (!banterComments[match]) banterComments[match] = [];
+      banterComments[match].push({ author, comment });
+      textEl.value = '';
+      renderComments(match, safeMatch);
+    }
+  } catch(e) {}
+}
+
+async function loadComments(match, safeMatch) {
+  try {
+    const res = await fetch(`/api/banter-comments/${encodeURIComponent(match)}`);
+    const data = await res.json();
+    banterComments[match] = data.map(c => ({ author: c.author, comment: c.comment }));
+    renderComments(match, safeMatch);
+  } catch(e) {}
+}
+
+function renderComments(match, safeMatch) {
+  const container = document.getElementById(`comments-${safeMatch}`);
+  if (!container) return;
+  const comments = banterComments[match] || [];
+  container.innerHTML = comments.length ? comments.map(c => `
+    <div class="comment-item">
+      <span class="comment-author">${c.author}:</span>
+      <span class="comment-text">${c.comment}</span>
+    </div>`).join('') : '';
+}
+
 function renderBanterCard(match, text) {
+  if (!banterReactions[match]) banterReactions[match] = {};
+  const safeMatch = match.replace(/\s/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+  const reactionHtml = REACTIONS.map(emoji => {
+    const count = banterReactions[match]?.[emoji] || 0;
+    return `<button class="reaction-btn" onclick="toggleReaction('${match}', '${emoji}', this)">
+      ${emoji}<span class="reaction-count">${count || ''}</span>
+    </button>`;
+  }).join('');
+  setTimeout(() => loadComments(match, safeMatch), 50);
   return `<div class="banter-card">
     <div class="banter-match">🏏 ${match}</div>
     <div class="banter-text">${text}</div>
+    <div class="banter-reactions">${reactionHtml}</div>
+    <div class="banter-comments">
+      <div id="comments-${safeMatch}"></div>
+      <div class="comment-input-row">
+        <input class="comment-name-input" id="comment-name-${safeMatch}" placeholder="Your name" maxlength="20">
+        <input class="comment-text-input" id="comment-text-${safeMatch}" placeholder="Add a comment..." maxlength="150"
+          onkeydown="if(event.key==='Enter') addComment('${match}', '${safeMatch}')">
+        <button class="comment-submit" onclick="addComment('${match}', '${safeMatch}')">Post</button>
+      </div>
+    </div>
   </div>`;
 }
 
