@@ -587,12 +587,19 @@ def get_leaderboard():
         return cvc_state
 
     def get_multiplier(owner, player_name, match_name):
+        # player_name here is already normalize_name'd from the API
+        # cvc_state keys are roster names — need to match them
         cvc_state = get_cvc_at_match_time(owner, match_name)
+        # Direct lookup first
         role = cvc_state.get(player_name)
-        if role == "C":
-            return 2
-        elif role == "VC":
-            return 1.5
+        if role:
+            return 2 if role == "C" else 1.5
+        # Try normalizing the cvc_state keys
+        player_normalized = player_name.lower().replace(" ", "").replace(".", "")
+        for roster_name, r in cvc_state.items():
+            roster_normalized = roster_name.lower().replace(" ", "").replace(".", "")
+            if player_normalized == roster_normalized:
+                return 2 if r == "C" else 1.5
         return 1
 
     for stat in all_stats:
