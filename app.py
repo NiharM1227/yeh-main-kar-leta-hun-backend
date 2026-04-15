@@ -128,7 +128,7 @@ TEAMS = {
         {"name":"Jasprit Bumrah","role":"Bowler","ipl":"MI","cvc":None},
         {"name":"Rachin Ravindra","role":"All-rounder","ipl":"KKR","cvc":None},
         {"name":"Finn Allen","role":"Batsman","ipl":"KKR","cvc":None},
-        {"name":"Dewald Brewis","role":"Bowler","ipl":"CSK","cvc":None},
+        {"name":"Dewald Brevis","role":"Batsman","ipl":"MI","cvc":None},
         {"name":"Deepak Chahar","role":"Bowler","ipl":"MI","cvc":None},
         {"name":"Tim David","role":"All-rounder","ipl":"RCB","cvc":None},
     ]},
@@ -486,6 +486,7 @@ def calculate_points(player_data):
 # ─── NAME ALIASES ─────────────────────────────────────────────────────────────
 # Maps API name variations to the canonical name used in TEAMS
 NAME_ALIASES = {
+    "Dewald Brewis": "Dewald Brevis",
     "Varun Chakaravarthy": "Varun Chakravarthy",
     "Philip Salt": "Philip Salt",
     "Phil Salt": "Philip Salt",
