@@ -576,7 +576,7 @@ def get_leaderboard():
             # Sort changes by date descending
             changes = sorted(cvc_history[owner], key=lambda c: c["date"], reverse=True)
             for change in changes:
-                if change["date"] > match_date:
+                if change["date"] >= match_date:
                     # This change happened after the match — reverse it
                     change_type = change["type"]
                     if current_cvc == change_type and player_name == change["to_player"]:
