@@ -43,14 +43,21 @@ def init_db():
                 )
             """)
             cur.execute("""
-                CREATE TABLE IF NOT EXISTS cvc_changes (
+                CREATE TABLE IF NOT EXISTS banter_reactions (
                     id SERIAL PRIMARY KEY,
-                    team VARCHAR(100) NOT NULL,
-                    type VARCHAR(5) NOT NULL,
-                    from_player VARCHAR(100),
-                    to_player VARCHAR(100),
-                    date VARCHAR(20),
-                    penalty INTEGER DEFAULT 0
+                    match VARCHAR(100) NOT NULL,
+                    emoji VARCHAR(10) NOT NULL,
+                    count INTEGER DEFAULT 0,
+                    UNIQUE(match, emoji)
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS banter_comments (
+                    id SERIAL PRIMARY KEY,
+                    match VARCHAR(100) NOT NULL,
+                    author VARCHAR(50) NOT NULL,
+                    comment TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT NOW()
                 )
             """)
         conn.commit()
@@ -1479,6 +1486,80 @@ def adjust_points():
                 cur.execute("UPDATE match_stats SET pts=%s WHERE id=%s", (new_pts, found["id"]))
                 conn.commit()
                 return jsonify({"success": True, "player": found["player"], "match": match, "old_pts": found["pts"], "new_pts": new_pts})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/banter-reactions", methods=["GET"])
+def get_banter_reactions():
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT match, emoji, count FROM banter_reactions")
+                rows = [dict(r) for r in cur.fetchall()]
+        result = {}
+        for row in rows:
+            if row["match"] not in result:
+                result[row["match"]] = {}
+            result[row["match"]][row["emoji"]] = row["count"]
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({}), 500
+
+@app.route("/api/banter-reactions", methods=["POST"])
+def update_banter_reaction():
+    data = request.get_json()
+    match = data.get("match", "").strip()
+    emoji = data.get("emoji", "").strip()
+    delta = data.get("delta", 1)
+    if not match or not emoji:
+        return jsonify({"error": "match and emoji required"}), 400
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO banter_reactions (match, emoji, count)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (match, emoji) DO UPDATE
+                    SET count = GREATEST(0, banter_reactions.count + %s)
+                    RETURNING count
+                """, (match, emoji, max(0, delta), delta))
+                new_count = cur.fetchone()["count"]
+            conn.commit()
+        return jsonify({"success": True, "count": new_count})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/banter-comments/<path:match>", methods=["GET"])
+def get_banter_comments(match):
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT id, author, comment, created_at FROM banter_comments WHERE match=%s ORDER BY created_at ASC", (match,))
+                rows = [dict(r) for r in cur.fetchall()]
+        for r in rows:
+            if r.get("created_at"):
+                r["created_at"] = str(r["created_at"])
+        return jsonify(rows)
+    except Exception as e:
+        return jsonify([]), 500
+
+@app.route("/api/banter-comments", methods=["POST"])
+def add_banter_comment():
+    data = request.get_json()
+    match = data.get("match", "").strip()
+    author = data.get("author", "").strip()
+    comment = data.get("comment", "").strip()
+    if not match or not author or not comment:
+        return jsonify({"error": "match, author and comment required"}), 400
+    if len(comment) > 200:
+        return jsonify({"error": "Comment too long"}), 400
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("INSERT INTO banter_comments (match, author, comment) VALUES (%s, %s, %s) RETURNING id", (match, author, comment))
+                new_id = cur.fetchone()["id"]
+            conn.commit()
+        return jsonify({"success": True, "id": new_id})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
