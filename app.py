@@ -602,6 +602,7 @@ def get_leaderboard():
                 return 2 if r == "C" else 1.5
         return 1
 
+    debug_log = []
     for stat in all_stats:
         player_name = normalize_name(stat["player"])
         match = stat["match"]
@@ -611,6 +612,8 @@ def get_leaderboard():
             for p in team["players"]:
                 if p["name"] == player_name:
                     mult = get_multiplier(owner, player_name, match)
+                    if player_name in ("Nicholas Pooran", "Priyansh Arya") and owner == "Vikram Jumani":
+                        debug_log.append({"player": player_name, "match": match, "raw_pts": raw_pts, "mult": mult, "total": raw_pts * mult})
                     if match not in owner_match_pts[owner]:
                         owner_match_pts[owner][match] = 0
                     owner_match_pts[owner][match] += raw_pts * mult
@@ -640,7 +643,7 @@ def get_leaderboard():
     for i, r in enumerate(result):
         r["rank"] = i + 1
 
-    return result, matches_played, cvc_changes
+    return result, matches_played, cvc_changes, debug_log
 
 
 # ─── API ENDPOINTS ────────────────────────────────────────────────────────────
@@ -714,8 +717,8 @@ def debug_cvc():
 
 @app.route("/api/leaderboard")
 def api_leaderboard():
-    lb, matches, cvc_changes = get_leaderboard()
-    return jsonify({"leaderboard": lb, "matches": matches, "cvc_changes": cvc_changes})
+    lb, matches, cvc_changes, debug_log = get_leaderboard()
+    return jsonify({"leaderboard": lb, "matches": matches, "cvc_changes": cvc_changes, "debug_log": debug_log})
 
 @app.route("/api/teams")
 def api_teams():
@@ -1445,3 +1448,4 @@ def generate_banter():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
+    
