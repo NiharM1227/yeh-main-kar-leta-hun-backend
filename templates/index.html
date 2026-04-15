@@ -610,7 +610,7 @@ async function loadBanter() {
   container.innerHTML = '<div class="banter-loading">🔥 Generating banter...</div>';
 
   const cards = [];
-  for (const match of [...matchesList].reverse()) {
+  for (const match of [...matchesList].reverse().slice(0, 5)) {
     if (banterCache[match]) {
       cards.push(renderBanterCard(match, banterCache[match]));
       continue;
