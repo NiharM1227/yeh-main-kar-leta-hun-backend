@@ -657,6 +657,46 @@ def index():
 def admin():
     return render_template("admin.html")
 
+@app.route("/api/debug-cvc")
+def debug_cvc():
+    all_stats = get_all_stats()
+    cvc_changes = get_all_cvc_changes()
+    
+    cvc_history = {}
+    for change in cvc_changes:
+        team = change["team"]
+        if team not in cvc_history:
+            cvc_history[team] = []
+        cvc_history[team].append(change)
+
+    def get_cvc_at_match_time(owner, match_name):
+        match_date = get_match_date(match_name)
+        cvc_state = {}
+        for p in TEAMS[owner]["players"]:
+            if p["cvc"] in ("C", "VC"):
+                cvc_state[p["name"]] = p["cvc"]
+        if owner in cvc_history:
+            changes = sorted(cvc_history[owner], key=lambda c: c["date"], reverse=True)
+            for change in changes:
+                if change["date"] >= match_date:
+                    to_player = change["to_player"]
+                    from_player = change["from_player"]
+                    change_type = change["type"]
+                    if to_player in cvc_state and cvc_state[to_player] == change_type:
+                        del cvc_state[to_player]
+                    cvc_state[from_player] = change_type
+        return cvc_state
+
+    results = {}
+    for match in ["LSG vs DC", "SRH vs LSG", "KKR vs LSG", "LSG vs GT", "PBKS vs GT", "CSK vs PBKS", "SRH vs PBKS"]:
+        state = get_cvc_at_match_time("Vikram Jumani", match)
+        results[match] = {
+            "date": get_match_date(match),
+            "cvc_state": state
+        }
+    
+    return jsonify(results)
+
 @app.route("/api/leaderboard")
 def api_leaderboard():
     lb, matches, cvc_changes = get_leaderboard()
