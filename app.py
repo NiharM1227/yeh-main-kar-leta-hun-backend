@@ -729,33 +729,80 @@ def api_leaderboard():
 @app.route("/api/teams")
 def api_teams():
     all_stats = get_all_stats()
-    player_totals = {}
-    for stat in all_stats:
-        name = normalize_name(stat["player"])
-        if name not in player_totals:
-            player_totals[name] = {"name": name, "role": stat["role"], "total_pts": 0, "total_runs": 0, "total_wkts": 0, "matches": []}
-        player_totals[name]["total_pts"] += stat["pts"]
-        player_totals[name]["total_runs"] += stat.get("runs", 0)
-        player_totals[name]["total_wkts"] += stat.get("wickets", 0)
-        player_totals[name]["matches"].append({"match": stat["match"], "pts": stat["pts"], "runs": stat.get("runs", 0), "wkts": stat.get("wickets", 0), "mom": stat.get("mom", 0)})
+    cvc_changes = get_all_cvc_changes()
 
+    # Build cvc_history
+    cvc_history = {}
+    for change in cvc_changes:
+        team = change["team"]
+        if team not in cvc_history:
+            cvc_history[team] = []
+        cvc_history[team].append(change)
+
+    def get_cvc_at_time(owner, match_name):
+        match_date = get_match_date(match_name)
+        cvc_state = {}
+        for p in TEAMS[owner]["players"]:
+            if p["cvc"] in ("C", "VC"):
+                cvc_state[p["name"]] = p["cvc"]
+        if owner in cvc_history:
+            changes = sorted(cvc_history[owner], key=lambda c: c["date"], reverse=True)
+            for change in changes:
+                if change["date"] >= match_date:
+                    to_player = change["to_player"]
+                    from_player = change["from_player"]
+                    change_type = change["type"]
+                    if to_player in cvc_state and cvc_state[to_player] == change_type:
+                        del cvc_state[to_player]
+                    cvc_state[from_player] = change_type
+        return cvc_state
+
+    # Build player totals with date-aware multipliers per owner
     teams_out = {}
     for owner, team in TEAMS.items():
+        # Accumulate points per player using date-aware mult
+        player_data = {}
+        for stat in all_stats:
+            name = normalize_name(stat["player"])
+            match = stat["match"]
+            raw_pts = stat["pts"]
+            # Check if this player is in this owner's team
+            roster_names = [p["name"] for p in team["players"]]
+            if name not in roster_names:
+                continue
+            cvc_state = get_cvc_at_time(owner, match)
+            role = cvc_state.get(name)
+            mult = 2 if role == "C" else 1.5 if role == "VC" else 1
+            if name not in player_data:
+                player_data[name] = {"total_pts": 0, "total_runs": 0, "total_wkts": 0, "matches": []}
+            player_data[name]["total_pts"] += raw_pts * mult
+            player_data[name]["total_runs"] += stat.get("runs", 0)
+            player_data[name]["total_wkts"] += stat.get("wickets", 0)
+            player_data[name]["matches"].append({
+                "match": match,
+                "pts": round(raw_pts * mult, 1),
+                "raw_pts": raw_pts,
+                "mult": mult,
+                "runs": stat.get("runs", 0),
+                "wkts": stat.get("wickets", 0),
+                "mom": stat.get("mom", 0)
+            })
+
         players_out = []
         for p in team["players"]:
             name = p["name"]
-            pt = player_totals.get(name, {"total_pts": 0, "total_runs": 0, "total_wkts": 0, "matches": []})
-            mult = 2 if p["cvc"] == "C" else 1.5 if p["cvc"] == "VC" else 1
+            pd = player_data.get(name, {"total_pts": 0, "total_runs": 0, "total_wkts": 0, "matches": []})
+            # Current CVC for badge display
             players_out.append({
                 "name": name,
                 "role": p["role"],
                 "ipl": p["ipl"],
                 "cvc": p["cvc"],
-                "raw_pts": round(pt["total_pts"], 1),
-                "display_pts": round(pt["total_pts"] * mult, 1),
-                "total_runs": pt["total_runs"],
-                "total_wkts": pt["total_wkts"],
-                "matches": pt["matches"],
+                "raw_pts": round(sum(m["raw_pts"] for m in pd["matches"]), 1),
+                "display_pts": round(pd["total_pts"], 1),
+                "total_runs": pd["total_runs"],
+                "total_wkts": pd["total_wkts"],
+                "matches": sorted(pd["matches"], key=lambda m: get_match_order(m["match"])),
             })
         teams_out[owner] = sorted(players_out, key=lambda x: x["display_pts"], reverse=True)
 
@@ -1454,4 +1501,3 @@ def generate_banter():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
-    
