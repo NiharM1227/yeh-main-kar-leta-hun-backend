@@ -565,6 +565,14 @@ def get_all_replacements():
         print(f"DB read error: {e}")
         return []
 
+def get_player_role(player_name):
+    canonical = normalize_name(player_name)
+    for owner, team in TEAMS.items():
+        for p in team["players"]:
+            if p["name"] == canonical:
+                return p["role"]
+    return "Batsman"
+
 
     """Look up role from team data, with alias resolution."""
     canonical = normalize_name(player_name)
