@@ -74,6 +74,16 @@ def init_db():
                     created_at TIMESTAMP DEFAULT NOW()
                 )
             """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS replacements (
+                    id SERIAL PRIMARY KEY,
+                    team VARCHAR(100) NOT NULL,
+                    out_player VARCHAR(100) NOT NULL,
+                    in_player VARCHAR(100) NOT NULL,
+                    date VARCHAR(20) NOT NULL,
+                    reason VARCHAR(200) DEFAULT 'Ruled out'
+                )
+            """)
         conn.commit()
 
 # Initialise DB on startup
@@ -175,7 +185,7 @@ TEAMS = {
         {"name":"Krunal Pandya","role":"All-rounder","ipl":"RCB","cvc":None},
         {"name":"Ayush Mhatre","role":"Batsman","ipl":"CSK","cvc":None},
         {"name":"Jason Holder","role":"All-rounder","ipl":"GT","cvc":None},
-        {"name":"Khaleel Ahmed","role":"Bowler","ipl":"CSK","cvc":None},
+        {"name":"Cooper Connolly","role":"All-rounder","ipl":"PBKS","cvc":None},
         {"name":"Bhuvneshwar Kumar","role":"Bowler","ipl":"RCB","cvc":None},
         {"name":"David Miller","role":"Batsman","ipl":"DC","cvc":None},
         {"name":"Riyan Parag","role":"All-rounder","ipl":"RR","cvc":None},
@@ -544,7 +554,17 @@ def normalize_name(name):
     return name
 
 
-def get_player_role(player_name):
+def get_all_replacements():
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM replacements ORDER BY id")
+                return [dict(r) for r in cur.fetchall()]
+    except Exception as e:
+        print(f"DB read error: {e}")
+        return []
+
+
     """Look up role from team data, with alias resolution."""
     canonical = normalize_name(player_name)
     for team in TEAMS.values():
@@ -623,8 +643,7 @@ def get_leaderboard():
                 return 2 if r == "C" else 1.5
         return 1
 
-    debug_log = []
-    for stat in list(deduped.values()):
+    for stat in all_stats:
         player_name = normalize_name(stat["player"])
         match = stat["match"]
         raw_pts = stat["pts"]
@@ -633,14 +652,9 @@ def get_leaderboard():
             for p in team["players"]:
                 if p["name"] == player_name:
                     mult = get_multiplier(owner, player_name, match)
-                    if player_name in ("Nicholas Pooran", "Priyansh Arya") and owner == "Vikram Jumani":
-                        before = owner_match_pts[owner].get(match, 0)
-                        debug_log.append({"player": player_name, "match": match, "match_repr": repr(match), "raw_pts": raw_pts, "mult": mult, "total": raw_pts * mult, "before": before})
                     if match not in owner_match_pts[owner]:
                         owner_match_pts[owner][match] = 0
                     owner_match_pts[owner][match] += raw_pts * mult
-                    if player_name in ("Nicholas Pooran", "Priyansh Arya") and owner == "Vikram Jumani":
-                        debug_log[-1]["after"] = owner_match_pts[owner].get(match, 0)
 
     # Apply C/VC penalties
     for change in cvc_changes:
@@ -667,10 +681,7 @@ def get_leaderboard():
     for i, r in enumerate(result):
         r["rank"] = i + 1
 
-    # Add Vikram's raw match pts to debug
-    debug_log.append({"_vikram_raw_match_pts": dict(owner_match_pts.get("Vikram Jumani", {}))})
-
-    return result, matches_played, cvc_changes, debug_log
+    return result, matches_played, cvc_changes
 
 
 # ─── API ENDPOINTS ────────────────────────────────────────────────────────────
@@ -742,10 +753,38 @@ def debug_cvc():
 
     return jsonify(results)
 
+@app.route("/api/add-replacement", methods=["POST"])
+def add_replacement():
+    admin_key = request.headers.get("X-Admin-Key", "")
+    if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    team = data.get("team", "").strip()
+    out_player = data.get("out_player", "").strip()
+    in_player = data.get("in_player", "").strip()
+    date = data.get("date", "").strip()
+    reason = data.get("reason", "Ruled out").strip()
+    if not all([team, out_player, in_player, date]):
+        return jsonify({"error": "All fields required"}), 400
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("INSERT INTO replacements (team, out_player, in_player, date, reason) VALUES (%s,%s,%s,%s,%s)",
+                            (team, out_player, in_player, date, reason))
+            conn.commit()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/replacements")
+def api_replacements():
+    return jsonify({"replacements": get_all_replacements()})
+
 @app.route("/api/leaderboard")
 def api_leaderboard():
-    lb, matches, cvc_changes, debug_log = get_leaderboard()
-    return jsonify({"leaderboard": lb, "matches": matches, "cvc_changes": cvc_changes, "debug_log": debug_log})
+    lb, matches, cvc_changes = get_leaderboard()
+    replacements = get_all_replacements()
+    return jsonify({"leaderboard": lb, "matches": matches, "cvc_changes": cvc_changes, "replacements": replacements})
 
 @app.route("/api/teams")
 def api_teams():
