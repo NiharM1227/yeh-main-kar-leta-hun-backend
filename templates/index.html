@@ -343,7 +343,7 @@
 </div>
 
 <script>
-let lbData = [], matchesList = [], teamsData = {}, playersData = [], cvcChanges = [];
+let lbData = [], matchesList = [], teamsData = {}, playersData = [], cvcChanges = [], replacements = [];
 let roleFilter = 'All', matchFilter = 'All';
 
 const MATCH_ORDER_FE = ["RCB vs SRH","MI vs KKR","RR vs CSK","PBKS vs GT","LSG vs DC","KKR vs SRH","CSK vs PBKS","MI vs DC","RR vs GT","SRH vs LSG","RCB vs CSK","KKR vs PBKS","RR vs MI","DC vs GT","KKR vs LSG","RR vs RCB","PBKS vs SRH","CSK vs DC","LSG vs GT","MI vs RCB","SRH vs RR","CSK vs KKR","RCB vs LSG","MI vs PBKS","GT vs KKR","RCB vs DC","SRH vs CSK","KKR vs RR","PBKS vs LSG","GT vs MI","SRH vs DC","LSG vs RR","MI vs CSK","RCB vs GT","DC vs PBKS","RR vs SRH","GT vs CSK","LSG vs KKR","DC vs RCB","PBKS vs RR","MI vs SRH","GT vs RCB","RR vs DC","CSK vs MI","SRH vs KKR","GT vs PBKS","MI vs LSG","DC vs CSK","SRH vs PBKS","LSG vs RCB","DC vs KKR","RR vs GT","CSK vs LSG","RCB vs MI","PBKS vs DC","GT vs SRH","RCB vs KKR","PBKS vs MI","LSG vs CSK","KKR vs GT","PBKS vs RCB","DC vs RR","CSK vs SRH","RR vs LSG","KKR vs MI","CSK vs GT","SRH vs RCB","LSG vs PBKS","MI vs RR","KKR vs DC"];
@@ -370,6 +370,7 @@ async function loadAll() {
     lbData = lb.leaderboard;
     matchesList = sortMatches(lb.matches);
     cvcChanges = lb.cvc_changes || [];
+    replacements = lb.replacements || [];
     teamsData = teams.teams;
     playersData = players.players;
     const matchCount = matchesList.length;
@@ -454,6 +455,7 @@ function renderTeamDetail(owner) {
   const total = lb ? lb.total : 0;
   const penalty = lb ? lb.penalty : 0;
   const ownerCvcChanges = cvcChanges.filter(c => c.team === owner);
+  const ownerReplacements = replacements.filter(r => r.team === owner);
 
   document.getElementById('team-details').innerHTML = `
     <div class="team-header-card">
@@ -473,6 +475,16 @@ function renderTeamDetail(owner) {
                 <div style="color:var(--muted);font-size:11px;margin-top:2px">${c.from_player} → ${c.to_player}</div>
               </div>
               <span style="color:var(--red);font-family:'DM Mono';font-weight:600">${c.penalty} pts</span>
+            </div>
+          `).join('')}
+        </div>` : ''}
+      ${ownerReplacements.length ? `
+        <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
+          ${ownerReplacements.map(r => `
+            <div style="font-size:12px;margin-bottom:6px">
+              <span style="color:#34d399;font-weight:600">${r.reason}</span>
+              <span style="color:var(--muted);font-family:'DM Mono';font-size:10px;margin-left:6px">${r.date}</span>
+              <div style="color:var(--muted);font-size:11px;margin-top:2px">${r.out_player} → ${r.in_player}</div>
             </div>
           `).join('')}
         </div>` : ''}
