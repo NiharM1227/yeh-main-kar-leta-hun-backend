@@ -340,6 +340,75 @@ async function deleteMatch() {
 </script>
 
 <div style="border-top:1px solid #2a2a3d;margin:28px 0 24px;"></div>
+<h2 style="color:#34d399;font-size:18px;margin-bottom:4px;">🔄 Player Replacement</h2>
+<p>Record a player ruled out and their replacement.</p>
+
+<label>Admin Key</label>
+<input type="password" id="rep-admin-key" placeholder="Enter admin key">
+
+<label>Team Owner</label>
+<select id="rep-team">
+  <option value="">Select team owner</option>
+  <option>Vijay</option>
+  <option>Yash Shah</option>
+  <option>Samay Maru</option>
+  <option>Harsh Gupta</option>
+  <option>Vikram Jumani</option>
+  <option>Rishub Bubna</option>
+  <option>Nihar Mehta</option>
+  <option>Qais / Vaishali</option>
+</select>
+
+<label>Player Ruled Out</label>
+<input type="text" id="rep-out" placeholder="e.g. Khaleel Ahmed">
+
+<label>Replacement Player</label>
+<input type="text" id="rep-in" placeholder="e.g. Cooper Connolly">
+
+<label>Date</label>
+<input type="text" id="rep-date" placeholder="e.g. 2026-04-16">
+
+<label>Reason</label>
+<input type="text" id="rep-reason" placeholder="e.g. Ruled out — injury" value="Ruled out — injury">
+
+<button class="btn" onclick="addReplacement()" style="background:#34d399;color:#000;">Record Replacement</button>
+<div class="result" id="rep-result" style="margin-top:16px;display:none;"></div>
+
+<script>
+async function addReplacement() {
+  const key = document.getElementById('rep-admin-key').value.trim();
+  const team = document.getElementById('rep-team').value;
+  const out_player = document.getElementById('rep-out').value.trim();
+  const in_player = document.getElementById('rep-in').value.trim();
+  const date = document.getElementById('rep-date').value.trim();
+  const reason = document.getElementById('rep-reason').value.trim();
+  const resultEl = document.getElementById('rep-result');
+  if (!key) { alert('Enter admin key'); return; }
+  if (!team || !out_player || !in_player || !date) { alert('All fields required'); return; }
+  try {
+    const res = await fetch('/api/add-replacement', {
+      method: 'POST',
+      headers: { 'X-Admin-Key': key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ team, out_player, in_player, date, reason })
+    });
+    const data = await res.json();
+    resultEl.style.display = 'block';
+    if (data.success) {
+      resultEl.className = 'result success';
+      resultEl.innerHTML = `<h3>✅ Done</h3><div class="player-row"><span>${out_player} → ${in_player}</span><span>${team}</span></div>`;
+    } else {
+      resultEl.className = 'result error';
+      resultEl.innerHTML = `<h3>❌ Error</h3><p>${data.error}</p>`;
+    }
+  } catch(e) {
+    resultEl.style.display = 'block';
+    resultEl.className = 'result error';
+    resultEl.innerHTML = `<h3>❌ Connection error</h3><p>${e.message}</p>`;
+  }
+}
+</script>
+
+<div style="border-top:1px solid #2a2a3d;margin:28px 0 24px;"></div>
 <h2 style="color:#ef4444;font-size:18px;margin-bottom:4px;">⚠️ C/VC Change Penalty</h2>
 <p>Record a captain or vice-captain change. Applies a points deduction to that team.</p>
 
