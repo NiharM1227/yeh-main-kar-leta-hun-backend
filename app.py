@@ -256,8 +256,8 @@ TEAMS = {
     ]},
     "Qais / Vaishali": {"players": [
         {"name":"Suryakumar Yadav","role":"Batsman","ipl":"MI","cvc":"C"},
-        {"name":"Varun Chakravarthy","role":"Bowler","ipl":"KKR","cvc":"VC"},
-        {"name":"Jos Buttler","role":"Batsman","ipl":"GT","cvc":None},
+        {"name":"Varun Chakravarthy","role":"Bowler","ipl":"KKR","cvc":None},
+        {"name":"Jos Buttler","role":"Batsman","ipl":"GT","cvc":"VC"},
         {"name":"Philip Salt","role":"Batsman","ipl":"RCB","cvc":None},
         {"name":"Trent Boult","role":"Bowler","ipl":"MI","cvc":None},
         {"name":"Rashid Khan","role":"Bowler","ipl":"GT","cvc":None},
