@@ -643,6 +643,14 @@ def get_leaderboard():
                 return 2 if r == "C" else 1.5
         return 1
 
+    # Build replacement lookup: {team: {in_player: date}}
+    replacement_effective = {}
+    for r in get_all_replacements():
+        team = r["team"]
+        if team not in replacement_effective:
+            replacement_effective[team] = {}
+        replacement_effective[team][r["in_player"]] = r["date"]
+
     for stat in all_stats:
         player_name = normalize_name(stat["player"])
         match = stat["match"]
@@ -651,6 +659,12 @@ def get_leaderboard():
         for owner, team in TEAMS.items():
             for p in team["players"]:
                 if p["name"] == player_name:
+                    # Check if player is a replacement — only count from effective date
+                    if owner in replacement_effective and player_name in replacement_effective[owner]:
+                        effective_date = replacement_effective[owner][player_name]
+                        match_date = get_match_date(match)
+                        if match_date < effective_date:
+                            continue  # Skip points before replacement date
                     mult = get_multiplier(owner, player_name, match)
                     if match not in owner_match_pts[owner]:
                         owner_match_pts[owner][match] = 0
@@ -817,6 +831,15 @@ def api_teams():
                     cvc_state[from_player] = change_type
         return cvc_state
 
+    # Build replacement lookup
+    all_replacements = get_all_replacements()
+    replacement_effective = {}
+    for r in all_replacements:
+        t = r["team"]
+        if t not in replacement_effective:
+            replacement_effective[t] = {}
+        replacement_effective[t][r["in_player"]] = r["date"]
+
     # Build player totals with date-aware multipliers per owner
     teams_out = {}
     for owner, team in TEAMS.items():
@@ -830,6 +853,11 @@ def api_teams():
             roster_names = [p["name"] for p in team["players"]]
             if name not in roster_names:
                 continue
+            # Skip if replacement player before effective date
+            if owner in replacement_effective and name in replacement_effective[owner]:
+                effective_date = replacement_effective[owner][name]
+                if get_match_date(match) < effective_date:
+                    continue
             cvc_state = get_cvc_at_time(owner, match)
             role = cvc_state.get(name)
             mult = 2 if role == "C" else 1.5 if role == "VC" else 1
