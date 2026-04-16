@@ -497,10 +497,11 @@ function renderTeamDetail(owner) {
       const ptsClass = p.display_pts > 0 ? '' : p.display_pts < 0 ? 'neg' : 'zero';
       const cvcBadge = p.cvc ? `<span class="cvc-badge ${p.cvc==='C'?'c-badge':'vc-badge'}">${p.cvc}</span>` : '';
       const multLabel = p.cvc === 'C' ? '×2' : p.cvc === 'VC' ? '×1.5' : '';
-      return `<div class="player-card" onclick="openPlayerModal('${p.name}')">
+      const ruledOut = p.ruled_out ? `<span style="font-size:10px;color:#ef4444;font-weight:600;margin-left:4px">🚫 Ruled Out</span>` : '';
+      return `<div class="player-card" onclick="openPlayerModal('${p.name}')" style="${p.ruled_out ? 'opacity:0.6' : ''}">
         <div class="player-role-dot ${roleDot(p.role)}"></div>
         <div class="player-info">
-          <div class="player-name">${p.name}</div>
+          <div class="player-name">${p.name}${ruledOut}</div>
           <div class="player-meta">${p.ipl||'?'} ${cvcBadge}</div>
         </div>
         <div>
