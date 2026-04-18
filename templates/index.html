@@ -626,21 +626,21 @@ async function loadBanter() {
 
   container.innerHTML = '<div class="banter-loading">🔥 Generating banter...</div>';
 
-  const cards = [];
-  for (const match of [...matchesList].reverse().slice(0, 5)) {
+  const last5 = [...matchesList].reverse().slice(0, 5);
+  const cardMap = {};
+
+  for (const match of last5) {
     if (banterCache[match]) {
-      cards.push(renderBanterCard(match, banterCache[match]));
+      cardMap[match] = renderBanterCard(match, banterCache[match]);
       continue;
     }
 
-    // Get match stats for this match
     const matchStats = playersData
       .flatMap(p => p.matches.filter(m => m.match === match).map(m => ({ ...m, player: p.name, role: p.role })))
       .sort((a, b) => b.pts - a.pts);
 
     if (!matchStats.length) continue;
 
-    // Build owner points for this match
     const ownerPts = {};
     lbData.forEach(t => { ownerPts[t.name] = t.match_pts[match] || 0; });
     const sortedOwners = Object.entries(ownerPts).sort((a,b) => b[1] - a[1]);
@@ -656,13 +656,15 @@ async function loadBanter() {
       const data = await res.json();
       if (data.banter) {
         banterCache[match] = data.banter;
-        cards.push(renderBanterCard(match, data.banter));
+        cardMap[match] = renderBanterCard(match, data.banter);
       }
     } catch(e) {
-      cards.push(renderBanterCard(match, "Couldn't generate banter for this match. The cricket was probably too boring anyway 😴"));
+      cardMap[match] = renderBanterCard(match, "Couldn't generate banter for this match. The cricket was probably too boring anyway 😴");
     }
   }
 
+  // Render in correct order — most recent first
+  const cards = last5.filter(m => cardMap[m]).map(m => cardMap[m]);
   container.innerHTML = cards.join('') || '<div class="banter-empty">Nothing to roast yet!</div>';
 }
 
