@@ -9,6 +9,7 @@ from psycopg2.extras import RealDictCursor
 from flask import Flask, request, jsonify, render_template, send_from_directory, make_response
 from flask_cors import CORS
 
+
 app = Flask(__name__)
 CORS(app)
 
@@ -241,8 +242,8 @@ TEAMS = {
     ]},
     "Nihar Mehta": {"players": [
         {"name":"KL Rahul","role":"Batsman","ipl":"DC","cvc":"C"},
-        {"name":"Aiden Markram","role":"All-rounder","ipl":"LSG","cvc":"VC"},
-        {"name":"Vaibhav Sooryavanshi","role":"Batsman","ipl":"RR","cvc":None},
+        {"name":"Aiden Markram","role":"All-rounder","ipl":"LSG","cvc":None},
+        {"name":"Vaibhav Sooryavanshi","role":"Batsman","ipl":"RR","cvc":"VC"},
         {"name":"Shivam Dube","role":"All-rounder","ipl":"CSK","cvc":None},
         {"name":"Ajinkya Rahane","role":"Batsman","ipl":"KKR","cvc":None},
         {"name":"Sarfaraz Khan","role":"Batsman","ipl":"CSK","cvc":None},
@@ -1713,3 +1714,195 @@ def generate_banter():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
+
+
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=False)
+
+
+# ─── AUTO FETCH SCHEDULER ─────────────────────────────────────────────────────
+
+IPL_SERIES_ID = "87c62aac-bc3c-4738-ab93-19da0690488f"
+
+MATCH_IDS = {
+    "RCB vs SRH": "547b47e3-b2d9-4f51-8a49-8e7e4c946a6e",
+    "MI vs KKR": "950a9aad-a1a7-46ef-9dcd-d25dec7964af",
+    "RR vs CSK": "1412721c-3b2b-4703-89c7-f86f5ea81048",
+    "PBKS vs GT": "235b2c68-326a-49e0-959a-def9fe3b5736",
+    "LSG vs DC": "962d1940-4fea-4e71-97ca-5fc2c008169f",
+    "KKR vs SRH": "22fb99f0-77c2-4724-9375-32a82a0b2a70",
+    "CSK vs PBKS": "59353457-477e-4c7b-b367-e312d5474744",
+    "MI vs DC": "19455906-a0a9-4959-a591-c5aee00b3e1b",
+    "RR vs GT": "8f54d791-e6be-4638-9d30-862329e5ebc7",
+    "SRH vs LSG": "9186c79f-2121-4fc4-bb8d-3c411b417609",
+    "RCB vs CSK": "69d5e465-e2e5-4616-aa22-8d069c2dc0fe",
+    "KKR vs PBKS": "12b5d808-d9ab-468e-bd25-a2c347f64bdc",
+    "RR vs MI": "3dd82a3e-52e3-409b-bb9c-ef458942a7a2",
+    "DC vs GT": "5945bbf4-b6b5-45b6-abac-db03e8a39130",
+    "KKR vs LSG": "2d6c0b86-76c0-4795-96a4-e252f575d2d9",
+    "RR vs RCB": "3ec1f721-7f79-49e3-bbc1-69e88b9cf4a3",
+    "PBKS vs SRH": "8f0a09ba-2a87-4b94-9a61-d729ef8c0c14",
+    "CSK vs DC": "d8d0937a-8bd7-47b0-acbc-00d381578f85",
+    "LSG vs GT": "823d67eb-102e-4b60-93a0-1911a150d626",
+    "MI vs RCB": "b85f1b39-5766-46c7-9cea-14a64e0750b3",
+    "SRH vs RR": "d8360a13-342f-45b7-9f71-060e852777ec",
+    "CSK vs KKR": "8b691738-66b3-4774-a7fd-5a2113a54ca5",
+    "RCB vs LSG": "55e260bc-4aa7-44de-92e7-6bbd1edbb711",
+    "MI vs PBKS": "6289a2c9-75ee-49e1-9b83-ad7df53dcc21",
+    "GT vs KKR": "b481f31f-5ad7-4218-8a6e-16fc34d38048",
+    "RCB vs DC": "549ba395-31e9-477b-ba2c-a2a0dd1cbec9",
+    "SRH vs CSK": "c5bf2a95-1855-463d-accf-9c1db88418cd",
+    "KKR vs RR": "fb4d7e4a-c420-45f2-9f2f-d45ce094efbc",
+    "PBKS vs LSG": "ca8f24c0-6eef-4f8e-b50f-c63fc2b1ca98",
+    "GT vs MI": "97adf747-1086-489e-b892-3823ebffa555",
+    "SRH vs DC": "e4f4995f-036e-451d-861e-42567c82d87f",
+    "LSG vs RR": "b8ec0cee-4d2f-456d-a815-a987e806f99a",
+    "MI vs CSK": "50520170-15b4-49e3-8180-835202e8f623",
+    "RCB vs GT": "ed074a44-a661-4727-83a7-4a33c2a05165",
+    "DC vs PBKS": "7bd928c0-1961-4fb5-a7a7-acd61c4a1586",
+    "RR vs SRH": "3d5968a6-4851-410c-b66a-811b92406933",
+    "GT vs CSK": "690985d0-c890-434a-bece-fb02d59b09d2",
+    "LSG vs KKR": "fbd861ca-4efb-4d1d-b46c-ba3bc334bce4",
+    "DC vs RCB": "63c19cfb-3544-41df-8bd8-10049818a6c5",
+    "PBKS vs RR": "8fbd3678-6299-4e67-8c28-74d4952b6ae7",
+    "MI vs SRH": "05d33d50-3efe-42f9-98f7-1f363a2f153a",
+    "GT vs RCB": "7e0789c4-6bdc-48da-a67f-49213f6d731e",
+    "RR vs DC": "3093f73b-639c-464c-8497-b6b238b5b9af",
+    "CSK vs MI": "d2cceca7-65d7-441e-8483-4505fd7cd073",
+    "SRH vs KKR": "1153edf6-3ae1-4722-be1e-0256495b49cb",
+    "GT vs PBKS": "f039998e-28b0-4445-b431-8bbccbbc6f1f",
+    "MI vs LSG": "ed18f7e9-d348-4ace-bfcd-9639096c6808",
+    "DC vs CSK": "4804409b-28ee-4f3e-ab55-a4a4cb090198",
+    "SRH vs PBKS": "312ba6aa-5e93-4673-bb0c-cb207fdc9e2d",
+    "LSG vs RCB": "8b326da3-8ff6-4e64-abe4-cb430d7a6c53",
+    "DC vs KKR": "90d5c075-3c9a-40b7-ab45-80a36a3a2351",
+    "RR vs GT": "6ffec712-6562-490c-a4fa-ae4b6ae59188",
+    "CSK vs LSG": "6aced947-319c-4e4a-9214-6f94f14c043e",
+    "RCB vs MI": "02d3614d-9727-43c5-a80c-0bf46c7499c6",
+    "PBKS vs DC": "ee5ab0d9-acd2-42bf-b5bc-f4d287e0f434",
+    "GT vs SRH": "9413d7dd-bf8e-49f6-8ce7-91faf29a0115",
+    "RCB vs KKR": "0b3bab15-12b2-4a16-9f41-1096e40ff202",
+    "PBKS vs MI": "6666db12-b9cc-49f0-b3af-5628fc8c53fa",
+    "LSG vs CSK": "68746b1f-d4b0-4f0a-a46a-46a1946aae32",
+    "KKR vs GT": "166633a2-cecb-4cf3-a984-78dc898b5345",
+    "PBKS vs RCB": "288e3406-3692-400a-bc22-fb8cfa0db2ca",
+    "DC vs RR": "990e89ea-3f6a-4196-ac73-7ad1a5f8c451",
+    "CSK vs SRH": "8416c2a9-4a74-4ac2-a6ae-5ad2538cbc56",
+    "RR vs LSG": "3b225f44-ddf2-41d4-8079-7a3f81876e35",
+    "KKR vs MI": "5b1d59f9-51fd-449d-8cf1-9fc15ef15675",
+    "CSK vs GT": "fd660ab1-c4bf-4c0f-b1b9-7232361cd1e8",
+    "SRH vs RCB": "bf23431b-ba1c-4147-94d9-b8d361a3ce9e",
+    "LSG vs PBKS": "7134216b-553c-4099-82a8-ee48bd9c46f3",
+    "MI vs RR": "c0d94cec-8a67-4414-80af-81e7d4a9ee9a",
+    "KKR vs DC": "8f61d649-f53b-4e79-9bfb-661cfe69be3b",
+}
+
+def get_already_fetched_matches():
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT DISTINCT match FROM match_stats")
+                return [row["match"] for row in cur.fetchall()]
+    except Exception as e:
+        print(f"Scheduler: DB error: {e}")
+        return []
+
+def auto_fetch_completed_matches():
+    api_key = os.environ.get("CRICKETDATA_API_KEY", "")
+    if not api_key:
+        return
+    try:
+        url = f"https://api.cricapi.com/v1/series_info?apikey={api_key}&id={IPL_SERIES_ID}"
+        response = req.get(url, timeout=15)
+        data = response.json()
+        if data.get("status") != "success":
+            return
+        match_list = data.get("data", {}).get("matchList", [])
+        already_fetched = get_already_fetched_matches()
+        for match in match_list:
+            if not match.get("matchEnded"):
+                continue
+            match_id = match.get("id")
+            match_name = None
+            for name, mid in MATCH_IDS.items():
+                if mid == match_id:
+                    match_name = name
+                    break
+            if not match_name:
+                continue
+            parts = match_name.split(" vs ")
+            reversed_name = f"{parts[1]} vs {parts[0]}" if len(parts) == 2 else match_name
+            if match_name in already_fetched or reversed_name in already_fetched:
+                continue
+            print(f"Scheduler: Auto-fetching {match_name}...")
+            try:
+                sc_url = f"https://api.cricapi.com/v1/match_scorecard?apikey={api_key}&id={match_id}"
+                sc_response = req.get(sc_url, timeout=15)
+                sc_data = sc_response.json()
+                if sc_data.get("status") != "success":
+                    continue
+                innings_list = sc_data.get("data", {}).get("scorecard", [])
+                if not innings_list:
+                    continue
+                players = {}
+                def get_or_create_s(name):
+                    if name not in players:
+                        players[name] = {"player": name, "role": get_player_role(name),
+                                         "runs": 0, "fours": 0, "sixes": 0, "wickets": 0,
+                                         "catches": 0, "stumpings": 0, "maidens": 0,
+                                         "dismissal": "DNB", "mom": 0, "hattrick": 0}
+                    return players[name]
+                for innings in innings_list:
+                    for bat in innings.get("batting", []):
+                        name = bat["batsman"]["name"]
+                        p = get_or_create_s(name)
+                        dt = bat.get("dismissal-text", "")
+                        dismissal = "Not Out" if dt == "not out" else ("Out" if dt else "DNB")
+                        if bat.get("r", 0) > p["runs"]:
+                            p["runs"] = bat.get("r", 0)
+                            p["fours"] = bat.get("4s", 0)
+                            p["sixes"] = bat.get("6s", 0)
+                        if dismissal != "DNB":
+                            p["dismissal"] = dismissal
+                for innings in innings_list:
+                    for bowl in innings.get("bowling", []):
+                        name = bowl["bowler"]["name"]
+                        p = get_or_create_s(name)
+                        p["wickets"] += bowl.get("w", 0)
+                        p["maidens"] += bowl.get("m", 0)
+                for innings in innings_list:
+                    for catch in innings.get("catching", []):
+                        catcher_info = catch.get("catcher", {})
+                        name = catcher_info.get("name", "")
+                        if not name:
+                            continue
+                        alt_names = catcher_info.get("altnames", [])
+                        matched_name = name
+                        if name not in players:
+                            for alt in alt_names:
+                                if alt in players:
+                                    matched_name = alt
+                                    break
+                        p = get_or_create_s(matched_name)
+                        p["catches"] += catch.get("catch", 0)
+                        p["stumpings"] += catch.get("stumped", 0)
+                new_entries = process_players(list(players.values()), match_name, "")
+                save_stats(new_entries)
+                print(f"Scheduler: Fetched {match_name} — {len(new_entries)} players")
+            except Exception as e:
+                print(f"Scheduler: Error fetching {match_name}: {e}")
+    except Exception as e:
+        print(f"Scheduler: Error: {e}")
+
+try:
+    if APSCHEDULER_AVAILABLE:
+        scheduler = BackgroundScheduler()
+        scheduler.add_job(auto_fetch_completed_matches, 'interval', hours=1, id='auto_fetch')
+        scheduler.start()
+        print("Scheduler started")
+    else:
+        print("APScheduler not available — auto-fetch disabled")
+except Exception as e:
+    print(f"Scheduler not started: {e}")
