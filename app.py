@@ -124,6 +124,7 @@ TEAMS = {
         {"name":"Naman Dhir","role":"Batsman","ipl":"MI","cvc":None},
         {"name":"Shardul Thakur","role":"All-rounder","ipl":"MI","cvc":None},
         {"name":"Anrich Nortje","role":"Bowler","ipl":"LSG","cvc":None},
+        {"name":"Kagiso Rabada","role":"Bowler","ipl":"GT","cvc":None},
     ]},
     "Vikram Jumani": {"players": [
         {"name":"Yashasvi Jaiswal","role":"Batsman","ipl":"RR","cvc":"C"},
