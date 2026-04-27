@@ -8,91 +8,25 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from flask import Flask, request, jsonify, render_template, send_from_directory, make_response
 from flask_cors import CORS
-
-
 app = Flask(__name__)
 CORS(app)
-
 client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
-
-# ─── DATABASE ─────────────────────────────────────────────────────────────────
-
 def get_db():
     return psycopg2.connect(os.environ.get("DATABASE_URL"), cursor_factory=RealDictCursor)
-
 def init_db():
     with get_db() as conn:
         with conn.cursor() as cur:
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS match_stats (
-                    id SERIAL PRIMARY KEY,
-                    match VARCHAR(100) NOT NULL,
-                    player VARCHAR(100) NOT NULL,
-                    role VARCHAR(50),
-                    runs INTEGER DEFAULT 0,
-                    fours INTEGER DEFAULT 0,
-                    sixes INTEGER DEFAULT 0,
-                    wickets INTEGER DEFAULT 0,
-                    catches INTEGER DEFAULT 0,
-                    stumpings INTEGER DEFAULT 0,
-                    maidens INTEGER DEFAULT 0,
-                    dismissal VARCHAR(20) DEFAULT 'DNB',
-                    mom INTEGER DEFAULT 0,
-                    hattrick INTEGER DEFAULT 0,
-                    pts REAL DEFAULT 0,
-                    UNIQUE(match, player)
-                )
-            """)
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS banter_text (
-                    match VARCHAR(100) PRIMARY KEY,
-                    banter TEXT NOT NULL,
-                    created_at TIMESTAMP DEFAULT NOW()
-                )
-            """)
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS banter_reactions (
-                    id SERIAL PRIMARY KEY,
-                    match VARCHAR(100) NOT NULL,
-                    emoji VARCHAR(10) NOT NULL,
-                    count INTEGER DEFAULT 0,
-                    UNIQUE(match, emoji)
-                )
-            """)
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS banter_comments (
-                    id SERIAL PRIMARY KEY,
-                    match VARCHAR(100) NOT NULL,
-                    author VARCHAR(50) NOT NULL,
-                    comment TEXT NOT NULL,
-                    created_at TIMESTAMP DEFAULT NOW()
-                )
-            """)
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS banter_cache (
-                    match VARCHAR(100) PRIMARY KEY,
-                    banter TEXT NOT NULL,
-                    created_at TIMESTAMP DEFAULT NOW()
-                )
-            """)
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS replacements (
-                    id SERIAL PRIMARY KEY,
-                    team VARCHAR(100) NOT NULL,
-                    out_player VARCHAR(100) NOT NULL,
-                    in_player VARCHAR(100) NOT NULL,
-                    date VARCHAR(20) NOT NULL,
-                    reason VARCHAR(200) DEFAULT 'Ruled out'
-                )
-            """)
+            cur.execute("""CREATE TABLE IF NOT EXISTS match_stats (id SERIAL PRIMARY KEY, match VARCHAR(100) NOT NULL, player VARCHAR(100) NOT NULL, role VARCHAR(50), runs INTEGER DEFAULT 0, fours INTEGER DEFAULT 0, sixes INTEGER DEFAULT 0, wickets INTEGER DEFAULT 0, catches INTEGER DEFAULT 0, stumpings INTEGER DEFAULT 0, maidens INTEGER DEFAULT 0, dismissal VARCHAR(20) DEFAULT 'DNB', mom INTEGER DEFAULT 0, hattrick INTEGER DEFAULT 0, pts REAL DEFAULT 0, UNIQUE(match, player))""")
+            cur.execute("""CREATE TABLE IF NOT EXISTS cvc_changes (id SERIAL PRIMARY KEY, team VARCHAR(100) NOT NULL, type VARCHAR(5) NOT NULL, from_player VARCHAR(100), to_player VARCHAR(100), date VARCHAR(20), penalty INTEGER DEFAULT 0)""")
+            cur.execute("""CREATE TABLE IF NOT EXISTS banter_reactions (id SERIAL PRIMARY KEY, match VARCHAR(100) NOT NULL, emoji VARCHAR(10) NOT NULL, count INTEGER DEFAULT 0, UNIQUE(match, emoji))""")
+            cur.execute("""CREATE TABLE IF NOT EXISTS banter_comments (id SERIAL PRIMARY KEY, match VARCHAR(100) NOT NULL, author VARCHAR(50) NOT NULL, comment TEXT NOT NULL, created_at TIMESTAMP DEFAULT NOW())""")
+            cur.execute("""CREATE TABLE IF NOT EXISTS banter_cache (match VARCHAR(100) PRIMARY KEY, banter TEXT NOT NULL, created_at TIMESTAMP DEFAULT NOW())""")
+            cur.execute("""CREATE TABLE IF NOT EXISTS replacements (id SERIAL PRIMARY KEY, team VARCHAR(100) NOT NULL, out_player VARCHAR(100) NOT NULL, in_player VARCHAR(100) NOT NULL, date VARCHAR(20) NOT NULL, reason VARCHAR(200) DEFAULT 'Ruled out')""")
         conn.commit()
-
-# Initialise DB on startup
 try:
     init_db()
 except Exception as e:
     print(f"DB init error: {e}")
-
 def get_all_stats():
     try:
         with get_db() as conn:
@@ -102,7 +36,6 @@ def get_all_stats():
     except Exception as e:
         print(f"DB read error: {e}")
         return []
-
 def get_all_cvc_changes():
     try:
         with get_db() as conn:
@@ -112,42 +45,23 @@ def get_all_cvc_changes():
     except Exception as e:
         print(f"DB read error: {e}")
         return []
-
 def save_stats(entries):
     try:
         with get_db() as conn:
             with conn.cursor() as cur:
                 for e in entries:
-                    cur.execute("""
-                        INSERT INTO match_stats 
-                        (match, player, role, runs, fours, sixes, wickets, catches, stumpings, maidens, dismissal, mom, hattrick, pts)
-                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                        ON CONFLICT (match, player) DO UPDATE SET
-                        runs=EXCLUDED.runs, fours=EXCLUDED.fours, sixes=EXCLUDED.sixes,
-                        wickets=EXCLUDED.wickets, catches=EXCLUDED.catches, stumpings=EXCLUDED.stumpings,
-                        maidens=EXCLUDED.maidens, dismissal=EXCLUDED.dismissal, mom=EXCLUDED.mom,
-                        hattrick=EXCLUDED.hattrick, pts=EXCLUDED.pts, role=EXCLUDED.role
-                    """, (e["match"], e["player"], e["role"], e["runs"], e["fours"], e["sixes"],
-                          e["wickets"], e["catches"], e["stumpings"], e["maidens"],
-                          e["dismissal"], e["mom"], e["hattrick"], e["pts"]))
+                    cur.execute("""INSERT INTO match_stats (match, player, role, runs, fours, sixes, wickets, catches, stumpings, maidens, dismissal, mom, hattrick, pts) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT (match, player) DO UPDATE SET runs=EXCLUDED.runs, fours=EXCLUDED.fours, sixes=EXCLUDED.sixes, wickets=EXCLUDED.wickets, catches=EXCLUDED.catches, stumpings=EXCLUDED.stumpings, maidens=EXCLUDED.maidens, dismissal=EXCLUDED.dismissal, mom=EXCLUDED.mom, hattrick=EXCLUDED.hattrick, pts=EXCLUDED.pts, role=EXCLUDED.role""", (e["match"], e["player"], e["role"], e["runs"], e["fours"], e["sixes"], e["wickets"], e["catches"], e["stumpings"], e["maidens"], e["dismissal"], e["mom"], e["hattrick"], e["pts"]))
             conn.commit()
     except Exception as ex:
         print(f"DB save error: {ex}")
-
 def save_cvc_change(change):
     try:
         with get_db() as conn:
             with conn.cursor() as cur:
-                cur.execute("""
-                    INSERT INTO cvc_changes (team, type, from_player, to_player, date, penalty)
-                    VALUES (%s,%s,%s,%s,%s,%s)
-                """, (change["team"], change["type"], change["from"], change["to"], change["date"], change["penalty"]))
+                cur.execute("INSERT INTO cvc_changes (team, type, from_player, to_player, date, penalty) VALUES (%s,%s,%s,%s,%s,%s)", (change["team"], change["type"], change["from"], change["to"], change["date"], change["penalty"]))
             conn.commit()
     except Exception as ex:
         print(f"DB save error: {ex}")
-
-
-
 TEAMS = {
     "Vijay": {"players": [
         {"name":"Virat Kohli","role":"Batsman","ipl":"RCB","cvc":"C"},
@@ -184,7 +98,8 @@ TEAMS = {
         {"name":"Mitchell Marsh","role":"All-rounder","ipl":"LSG","cvc":"VC"},
         {"name":"Ruturaj Gaikwad","role":"Batsman","ipl":"CSK","cvc":None},
         {"name":"Krunal Pandya","role":"All-rounder","ipl":"RCB","cvc":None},
-        {"name":"Ayush Mhatre","role":"Batsman","ipl":"CSK","cvc":None},
+        {"name":"Ayush Mhatre","role":"Batsman","ipl":"CSK","cvc":None,"ruled_out":True},
+        {"name":"Eshan Malinga","role":"Bowler","ipl":"SRH","cvc":None},
         {"name":"Jason Holder","role":"All-rounder","ipl":"GT","cvc":None},
         {"name":"Khaleel Ahmed","role":"Bowler","ipl":"CSK","cvc":None,"ruled_out":True},
         {"name":"Cooper Connolly","role":"All-rounder","ipl":"PBKS","cvc":None},
@@ -271,181 +186,63 @@ TEAMS = {
         {"name":"Vyshak Vijaykumar","role":"Bowler","ipl":"PK","cvc":None},
     ]},
 }
-
-# ─── MATCH ORDER ──────────────────────────────────────────────────────────────
-# Maps match name (as stored in DB) to match number for correct display ordering
 MATCH_ORDER = {
-    "RCB vs SRH": 1,
-    "MI vs KKR": 2,
-    "RR vs CSK": 3,
-    "PBKS vs GT": 4,
-    "LSG vs DC": 5,
-    "KKR vs SRH": 6,
-    "CSK vs PBKS": 7,
-    "MI vs DC": 8,
-    "RR vs GT": 9,
-    "SRH vs LSG": 10,
-    "RCB vs CSK": 11,
-    "KKR vs PBKS": 12,
-    "RR vs MI": 13,
-    "DC vs GT": 14,
-    "KKR vs LSG": 15,
-    "RR vs RCB": 16,
-    "PBKS vs SRH": 17,
-    "CSK vs DC": 18,
-    "LSG vs GT": 19,
-    "MI vs RCB": 20,
-    "SRH vs RR": 21,
-    "CSK vs KKR": 22,
-    "RCB vs LSG": 23,
-    "MI vs PBKS": 24,
-    "GT vs KKR": 25,
-    "RCB vs DC": 26,
-    "SRH vs CSK": 27,
-    "KKR vs RR": 28,
-    "PBKS vs LSG": 29,
-    "GT vs MI": 30,
-    "SRH vs DC": 31,
-    "LSG vs RR": 32,
-    "MI vs CSK": 33,
-    "RCB vs GT": 34,
-    "DC vs PBKS": 35,
-    "RR vs SRH": 36,
-    "GT vs CSK": 37,
-    "LSG vs KKR": 38,
-    "DC vs RCB": 39,
-    "PBKS vs RR": 40,
-    "MI vs SRH": 41,
-    "GT vs RCB": 42,
-    "RR vs DC": 43,
-    "CSK vs MI": 44,
-    "SRH vs KKR": 45,
-    "GT vs PBKS": 46,
-    "MI vs LSG": 47,
-    "DC vs CSK": 48,
-    "SRH vs PBKS": 49,
-    "LSG vs RCB": 50,
-    "DC vs KKR": 51,
-    "RR vs GT": 52,
-    "CSK vs LSG": 53,
-    "RCB vs MI": 54,
-    "PBKS vs DC": 55,
-    "GT vs SRH": 56,
-    "RCB vs KKR": 57,
-    "PBKS vs MI": 58,
-    "LSG vs CSK": 59,
-    "KKR vs GT": 60,
-    "PBKS vs RCB": 61,
-    "DC vs RR": 62,
-    "CSK vs SRH": 63,
-    "RR vs LSG": 64,
-    "KKR vs MI": 65,
-    "CSK vs GT": 66,
-    "SRH vs RCB": 67,
-    "LSG vs PBKS": 68,
-    "MI vs RR": 69,
-    "KKR vs DC": 70,
+    "RCB vs SRH": 1,"MI vs KKR": 2,"RR vs CSK": 3,"PBKS vs GT": 4,"LSG vs DC": 5,
+    "KKR vs SRH": 6,"CSK vs PBKS": 7,"MI vs DC": 8,"RR vs GT": 9,"SRH vs LSG": 10,
+    "RCB vs CSK": 11,"KKR vs PBKS": 12,"RR vs MI": 13,"DC vs GT": 14,"KKR vs LSG": 15,
+    "RR vs RCB": 16,"PBKS vs SRH": 17,"CSK vs DC": 18,"LSG vs GT": 19,"MI vs RCB": 20,
+    "SRH vs RR": 21,"CSK vs KKR": 22,"RCB vs LSG": 23,"MI vs PBKS": 24,"GT vs KKR": 25,
+    "RCB vs DC": 26,"SRH vs CSK": 27,"KKR vs RR": 28,"PBKS vs LSG": 29,"GT vs MI": 30,
+    "SRH vs DC": 31,"LSG vs RR": 32,"MI vs CSK": 33,"RCB vs GT": 34,"DC vs PBKS": 35,
+    "RR vs SRH": 36,"GT vs CSK": 37,"LSG vs KKR": 38,"DC vs RCB": 39,"PBKS vs RR": 40,
+    "MI vs SRH": 41,"GT vs RCB": 42,"RR vs DC": 43,"CSK vs MI": 44,"SRH vs KKR": 45,
+    "GT vs PBKS": 46,"MI vs LSG": 47,"DC vs CSK": 48,"SRH vs PBKS": 49,"LSG vs RCB": 50,
+    "DC vs KKR": 51,"RR vs GT": 52,"CSK vs LSG": 53,"RCB vs MI": 54,"PBKS vs DC": 55,
+    "GT vs SRH": 56,"RCB vs KKR": 57,"PBKS vs MI": 58,"LSG vs CSK": 59,"KKR vs GT": 60,
+    "PBKS vs RCB": 61,"DC vs RR": 62,"CSK vs SRH": 63,"RR vs LSG": 64,"KKR vs MI": 65,
+    "CSK vs GT": 66,"SRH vs RCB": 67,"LSG vs PBKS": 68,"MI vs RR": 69,"KKR vs DC": 70,
 }
-
 MATCH_DATES = {
-    "RCB vs SRH": "2026-03-28",
-    "MI vs KKR": "2026-03-29",
-    "RR vs CSK": "2026-03-30",
-    "PBKS vs GT": "2026-03-31",
-    "LSG vs DC": "2026-04-01",
-    "KKR vs SRH": "2026-04-02",
-    "CSK vs PBKS": "2026-04-03",
-    "MI vs DC": "2026-04-04",
-    "RR vs GT": "2026-04-04",
-    "SRH vs LSG": "2026-04-05",
-    "RCB vs CSK": "2026-04-05",
-    "KKR vs PBKS": "2026-04-06",
-    "RR vs MI": "2026-04-07",
-    "DC vs GT": "2026-04-08",
-    "KKR vs LSG": "2026-04-09",
-    "RR vs RCB": "2026-04-10",
-    "PBKS vs SRH": "2026-04-11",
-    "CSK vs DC": "2026-04-11",
-    "LSG vs GT": "2026-04-12",
-    "MI vs RCB": "2026-04-12",
-    "SRH vs RR": "2026-04-13",
-    "CSK vs KKR": "2026-04-14",
-    "RCB vs LSG": "2026-04-15",
-    "MI vs PBKS": "2026-04-16",
-    "GT vs KKR": "2026-04-17",
-    "RCB vs DC": "2026-04-18",
-    "SRH vs CSK": "2026-04-18",
-    "KKR vs RR": "2026-04-19",
-    "PBKS vs LSG": "2026-04-19",
-    "GT vs MI": "2026-04-20",
-    "SRH vs DC": "2026-04-21",
-    "LSG vs RR": "2026-04-22",
-    "MI vs CSK": "2026-04-23",
-    "RCB vs GT": "2026-04-24",
-    "DC vs PBKS": "2026-04-25",
-    "RR vs SRH": "2026-04-25",
-    "GT vs CSK": "2026-04-26",
-    "LSG vs KKR": "2026-04-26",
-    "DC vs RCB": "2026-04-27",
-    "PBKS vs RR": "2026-04-28",
-    "MI vs SRH": "2026-04-29",
-    "GT vs RCB": "2026-04-30",
-    "RR vs DC": "2026-05-01",
-    "CSK vs MI": "2026-05-02",
-    "SRH vs KKR": "2026-05-03",
-    "GT vs PBKS": "2026-05-03",
-    "MI vs LSG": "2026-05-04",
-    "DC vs CSK": "2026-05-05",
-    "SRH vs PBKS": "2026-05-06",
-    "LSG vs RCB": "2026-05-07",
-    "DC vs KKR": "2026-05-08",
-    "RR vs GT": "2026-05-09",
-    "CSK vs LSG": "2026-05-10",
-    "RCB vs MI": "2026-05-10",
-    "PBKS vs DC": "2026-05-11",
-    "GT vs SRH": "2026-05-12",
-    "RCB vs KKR": "2026-05-13",
-    "PBKS vs MI": "2026-05-14",
-    "LSG vs CSK": "2026-05-15",
-    "KKR vs GT": "2026-05-16",
-    "PBKS vs RCB": "2026-05-17",
-    "DC vs RR": "2026-05-17",
-    "CSK vs SRH": "2026-05-18",
-    "RR vs LSG": "2026-05-19",
-    "KKR vs MI": "2026-05-20",
-    "CSK vs GT": "2026-05-21",
-    "SRH vs RCB": "2026-05-22",
-    "LSG vs PBKS": "2026-05-23",
-    "MI vs RR": "2026-05-24",
+    "RCB vs SRH": "2026-03-28","MI vs KKR": "2026-03-29","RR vs CSK": "2026-03-30",
+    "PBKS vs GT": "2026-03-31","LSG vs DC": "2026-04-01","KKR vs SRH": "2026-04-02",
+    "CSK vs PBKS": "2026-04-03","MI vs DC": "2026-04-04","RR vs GT": "2026-04-04",
+    "SRH vs LSG": "2026-04-05","RCB vs CSK": "2026-04-05","KKR vs PBKS": "2026-04-06",
+    "RR vs MI": "2026-04-07","DC vs GT": "2026-04-08","KKR vs LSG": "2026-04-09",
+    "RR vs RCB": "2026-04-10","PBKS vs SRH": "2026-04-11","CSK vs DC": "2026-04-11",
+    "LSG vs GT": "2026-04-12","MI vs RCB": "2026-04-12","SRH vs RR": "2026-04-13",
+    "CSK vs KKR": "2026-04-14","RCB vs LSG": "2026-04-15","MI vs PBKS": "2026-04-16",
+    "GT vs KKR": "2026-04-17","RCB vs DC": "2026-04-18","SRH vs CSK": "2026-04-18",
+    "KKR vs RR": "2026-04-19","PBKS vs LSG": "2026-04-19","GT vs MI": "2026-04-20",
+    "SRH vs DC": "2026-04-21","LSG vs RR": "2026-04-22","MI vs CSK": "2026-04-23",
+    "RCB vs GT": "2026-04-24","DC vs PBKS": "2026-04-25","RR vs SRH": "2026-04-25",
+    "GT vs CSK": "2026-04-26","LSG vs KKR": "2026-04-26","DC vs RCB": "2026-04-27",
+    "PBKS vs RR": "2026-04-28","MI vs SRH": "2026-04-29","GT vs RCB": "2026-04-30",
+    "RR vs DC": "2026-05-01","CSK vs MI": "2026-05-02","SRH vs KKR": "2026-05-03",
+    "GT vs PBKS": "2026-05-03","MI vs LSG": "2026-05-04","DC vs CSK": "2026-05-05",
+    "SRH vs PBKS": "2026-05-06","LSG vs RCB": "2026-05-07","DC vs KKR": "2026-05-08",
+    "RR vs GT": "2026-05-09","CSK vs LSG": "2026-05-10","RCB vs MI": "2026-05-10",
+    "PBKS vs DC": "2026-05-11","GT vs SRH": "2026-05-12","RCB vs KKR": "2026-05-13",
+    "PBKS vs MI": "2026-05-14","LSG vs CSK": "2026-05-15","KKR vs GT": "2026-05-16",
+    "PBKS vs RCB": "2026-05-17","DC vs RR": "2026-05-17","CSK vs SRH": "2026-05-18",
+    "RR vs LSG": "2026-05-19","KKR vs MI": "2026-05-20","CSK vs GT": "2026-05-21",
+    "SRH vs RCB": "2026-05-22","LSG vs PBKS": "2026-05-23","MI vs RR": "2026-05-24",
     "KKR vs DC": "2026-05-24",
 }
-
 def get_match_date(match_name):
     if match_name in MATCH_DATES:
         return MATCH_DATES[match_name]
-    # Try reversed team order
     parts = match_name.split(" vs ")
     if len(parts) == 2:
-        reversed_name = f"{parts[1]} vs {parts[0]}"
-        return MATCH_DATES.get(reversed_name, "2026-01-01")
+        return MATCH_DATES.get(f"{parts[1]} vs {parts[0]}", "2026-01-01")
     return "2026-01-01"
-
 def get_match_order(match_name):
     if match_name in MATCH_ORDER:
         return MATCH_ORDER[match_name]
-    # Try reversed team order
     parts = match_name.split(" vs ")
     if len(parts) == 2:
-        reversed_name = f"{parts[1]} vs {parts[0]}"
-        return MATCH_ORDER.get(reversed_name, 999)
+        return MATCH_ORDER.get(f"{parts[1]} vs {parts[0]}", 999)
     return 999
-
-
-
-
-
 def calculate_points(player_data):
-    """Calculate fantasy points for a player's match performance."""
     runs = player_data.get("runs", 0)
     fours = player_data.get("fours", 0)
     sixes = player_data.get("sixes", 0)
@@ -457,10 +254,7 @@ def calculate_points(player_data):
     mom = player_data.get("mom", 0)
     hattrick = player_data.get("hattrick", 0)
     role = player_data.get("role", "Batsman")
-
     pts = 0
-
-    # Base points
     pts += runs * 1
     pts += fours * 1
     pts += sixes * 2
@@ -468,56 +262,25 @@ def calculate_points(player_data):
     pts += catches * 3
     pts += stumpings * 5
     pts += maidens * 10
-
-    # Duck penalty
     if runs == 0 and dismissal == "Out":
-        if role == "Batsman":
-            pts -= 6
-        elif role == "All-rounder":
-            pts -= 4
-        elif role == "Bowler":
-            pts -= 2
-
-    # Not out bonus
+        if role == "Batsman": pts -= 6
+        elif role == "All-rounder": pts -= 4
+        elif role == "Bowler": pts -= 2
     if dismissal == "Not Out":
-        if role == "Batsman":
-            pts += 6
-        elif role == "All-rounder":
-            pts += 4
-        elif role == "Bowler":
-            pts += 2
-
-    # Milestone bonuses — batting
-    if runs >= 100:
-        pts += 30
-    elif runs >= 75:
-        pts += 20
-    elif runs >= 50:
-        pts += 10
-    elif runs >= 30:
-        pts += 5
-
-    # Milestone bonuses — bowling
-    if hattrick:
-        pts += 30
-    if wickets >= 5:
-        pts += 30
-    elif wickets == 4:
-        pts += 20
-    elif wickets == 3:
-        pts += 10
-    elif wickets == 2:
-        pts += 5
-
-    # MOM
-    if mom:
-        pts += 10
-
+        if role == "Batsman": pts += 6
+        elif role == "All-rounder": pts += 4
+        elif role == "Bowler": pts += 2
+    if runs >= 100: pts += 30
+    elif runs >= 75: pts += 20
+    elif runs >= 50: pts += 10
+    elif runs >= 30: pts += 5
+    if hattrick: pts += 30
+    if wickets >= 5: pts += 30
+    elif wickets == 4: pts += 20
+    elif wickets == 3: pts += 10
+    elif wickets == 2: pts += 5
+    if mom: pts += 10
     return pts
-
-
-# ─── NAME ALIASES ─────────────────────────────────────────────────────────────
-# Maps API name variations to the canonical name used in TEAMS
 NAME_ALIASES = {
     "Dewald Brewis": "Dewald Brevis",
     "Varun Chakaravarthy": "Varun Chakravarthy",
@@ -531,31 +294,23 @@ NAME_ALIASES = {
     "Ishan Pranav Kumar Pandey Kishan": "Ishan Kishan",
     "Mohammed Siraj": "Mohammed Siraj",
     "KL Rahul": "KL Rahul",
+    "Digvesh Singh Rathi": "Digvesh Rathi",
+    "Vijaykumar Vyshak": "Vyshak Vijaykumar",
 }
-
 def normalize_name(name):
-    """Normalize a player name using aliases, then fuzzy match against known players."""
     if name in NAME_ALIASES:
         return NAME_ALIASES[name]
-
-    # Check if name directly matches a known player
     for team in TEAMS.values():
         for p in team["players"]:
             if p["name"].lower() == name.lower():
                 return p["name"]
-
-    # Fuzzy match — check if API name words are subset of known player name or vice versa
     name_parts = set(name.lower().split())
     for team in TEAMS.values():
         for p in team["players"]:
             known_parts = set(p["name"].lower().split())
-            # If all words in the shorter name appear in the longer name
             if name_parts.issubset(known_parts) or known_parts.issubset(name_parts):
                 return p["name"]
-
     return name
-
-
 def get_all_replacements():
     try:
         with get_db() as conn:
@@ -565,7 +320,6 @@ def get_all_replacements():
     except Exception as e:
         print(f"DB read error: {e}")
         return []
-
 def get_player_role(player_name):
     canonical = normalize_name(player_name)
     for owner, team in TEAMS.items():
@@ -573,55 +327,29 @@ def get_player_role(player_name):
             if p["name"] == canonical:
                 return p["role"]
     return "Batsman"
-
-
-    """Look up role from team data, with alias resolution."""
-    canonical = normalize_name(player_name)
-    for team in TEAMS.values():
-        for p in team["players"]:
-            if p["name"] == canonical:
-                return p["role"]
-    return "Batsman"
-
-
 def get_leaderboard():
     all_stats = get_all_stats()
     cvc_changes = get_all_cvc_changes()
-
-    # Deduplicate: for same player+match, keep highest pts entry
     deduped = {}
     for stat in all_stats:
         key = f"{stat['player']}|{stat['match']}"
         if key not in deduped or stat["pts"] > deduped[key]["pts"]:
             deduped[key] = stat
     all_stats = list(deduped.values())
-
     matches_played = sorted(list(set(s["match"] for s in all_stats)), key=get_match_order)
-
-    # Build per-owner per-match totals
     owner_match_pts = {owner: {} for owner in TEAMS}
-
-    # Build a date-aware CVC lookup per team
-    # For each team, build list of (date, type, player) changes sorted by date
     cvc_history = {}
     for change in cvc_changes:
         team = change["team"]
         if team not in cvc_history:
             cvc_history[team] = []
         cvc_history[team].append(change)
-
-
     def get_cvc_at_match_time(owner, match_name):
-        """Return dict of {player_name: 'C'/'VC'} as it was at match time."""
         match_date = get_match_date(match_name)
-
-        # Start with current state
         cvc_state = {}
         for p in TEAMS[owner]["players"]:
             if p["cvc"] in ("C", "VC"):
                 cvc_state[p["name"]] = p["cvc"]
-
-        # Reverse any changes that happened on or after match date
         if owner in cvc_history:
             changes = sorted(cvc_history[owner], key=lambda c: c["date"], reverse=True)
             for change in changes:
@@ -629,58 +357,43 @@ def get_leaderboard():
                     change_type = change["type"]
                     to_player = change["to_player"]
                     from_player = change["from_player"]
-                    # Remove the new assignment
                     if to_player in cvc_state and cvc_state[to_player] == change_type:
                         del cvc_state[to_player]
-                    # Restore the old assignment
                     cvc_state[from_player] = change_type
-
         return cvc_state
-
     def get_multiplier(owner, player_name, match_name):
-        # player_name here is already normalize_name'd from the API
-        # cvc_state keys are roster names — need to match them
         cvc_state = get_cvc_at_match_time(owner, match_name)
-        # Direct lookup first
         role = cvc_state.get(player_name)
         if role:
             return 2 if role == "C" else 1.5
-        # Try normalizing the cvc_state keys
         player_normalized = player_name.lower().replace(" ", "").replace(".", "")
         for roster_name, r in cvc_state.items():
             roster_normalized = roster_name.lower().replace(" ", "").replace(".", "")
             if player_normalized == roster_normalized:
                 return 2 if r == "C" else 1.5
         return 1
-
-    # Build replacement lookup: {team: {in_player: date}}
     replacement_effective = {}
     for r in get_all_replacements():
         team = r["team"]
         if team not in replacement_effective:
             replacement_effective[team] = {}
         replacement_effective[team][r["in_player"]] = r["date"]
-
     for stat in all_stats:
         player_name = normalize_name(stat["player"])
         match = stat["match"]
         raw_pts = stat["pts"]
-
         for owner, team in TEAMS.items():
             for p in team["players"]:
                 if p["name"] == player_name:
-                    # Check if player is a replacement — only count from effective date
                     if owner in replacement_effective and player_name in replacement_effective[owner]:
                         effective_date = replacement_effective[owner][player_name]
                         match_date = get_match_date(match)
                         if match_date < effective_date:
-                            continue  # Skip points before replacement date
+                            continue
                     mult = get_multiplier(owner, player_name, match)
                     if match not in owner_match_pts[owner]:
                         owner_match_pts[owner][match] = 0
                     owner_match_pts[owner][match] += raw_pts * mult
-
-    # Apply C/VC penalties
     for change in cvc_changes:
         owner = change["team"]
         if owner in owner_match_pts:
@@ -688,28 +401,16 @@ def get_leaderboard():
             if "__penalties__" not in owner_match_pts[owner]:
                 owner_match_pts[owner]["__penalties__"] = 0
             owner_match_pts[owner]["__penalties__"] += penalty
-
     result = []
     for owner in TEAMS:
         match_pts = owner_match_pts[owner]
         penalty = match_pts.pop("__penalties__", 0)
         total = sum(match_pts.values()) + penalty
-        result.append({
-            "name": owner,
-            "total": round(total, 1),
-            "penalty": round(penalty, 1),
-            "match_pts": {m: round(match_pts.get(m, 0), 1) for m in matches_played}
-        })
-
+        result.append({"name": owner, "total": round(total, 1), "penalty": round(penalty, 1), "match_pts": {m: round(match_pts.get(m, 0), 1) for m in matches_played}})
     result.sort(key=lambda x: x["total"], reverse=True)
     for i, r in enumerate(result):
         r["rank"] = i + 1
-
     return result, matches_played, cvc_changes
-
-
-# ─── API ENDPOINTS ────────────────────────────────────────────────────────────
-
 @app.route("/")
 def index():
     response = make_response(render_template("index.html"))
@@ -717,66 +418,9 @@ def index():
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
     return response
-
 @app.route("/admin")
 def admin():
     return render_template("admin.html")
-
-@app.route("/api/debug-cvc")
-def debug_cvc():
-    cvc_changes = get_all_cvc_changes()
-    all_stats = get_all_stats()
-    
-    cvc_history = {}
-    for change in cvc_changes:
-        team = change["team"]
-        if team not in cvc_history:
-            cvc_history[team] = []
-        cvc_history[team].append(change)
-
-    def get_cvc_at_match_time(owner, match_name):
-        match_date = get_match_date(match_name)
-        cvc_state = {}
-        for p in TEAMS[owner]["players"]:
-            if p["cvc"] in ("C", "VC"):
-                cvc_state[p["name"]] = p["cvc"]
-        if owner in cvc_history:
-            changes = sorted(cvc_history[owner], key=lambda c: c["date"], reverse=True)
-            for change in changes:
-                if change["date"] >= match_date:
-                    to_player = change["to_player"]
-                    from_player = change["from_player"]
-                    change_type = change["type"]
-                    if to_player in cvc_state and cvc_state[to_player] == change_type:
-                        del cvc_state[to_player]
-                    cvc_state[from_player] = change_type
-        return cvc_state
-
-    # Check Nicholas Pooran and Priyansh Arya multipliers per match
-    target_matches = ["LSG vs DC", "SRH vs LSG", "KKR vs LSG", "LSG vs GT", "PBKS vs GT", "CSK vs PBKS", "SRH vs PBKS"]
-    results = {}
-    for match in target_matches:
-        state = get_cvc_at_match_time("Vikram Jumani", match)
-        # Check multiplier for both players
-        pooran_mult = state.get("Nicholas Pooran")
-        arya_mult = state.get("Priyansh Arya")
-        # Find actual pts from stats
-        pooran_pts = next((s["pts"] for s in all_stats if normalize_name(s["player"]) == "Nicholas Pooran" and s["match"] == match), None)
-        arya_pts = next((s["pts"] for s in all_stats if normalize_name(s["player"]) == "Priyansh Arya" and s["match"] == match), None)
-        results[match] = {
-            "cvc_state": state,
-            "nicholas_pooran_cvc": pooran_mult,
-            "nicholas_pooran_pts_raw": pooran_pts,
-            "priyansh_arya_cvc": arya_mult,
-            "priyansh_arya_pts_raw": arya_pts,
-        }
-    
-    # Also show what names are stored in DB for these players
-    db_names = list(set(normalize_name(s["player"]) for s in all_stats if "pooran" in s["player"].lower() or "priyansh" in s["player"].lower() or "arya" in s["player"].lower()))
-    results["_db_names_found"] = db_names
-
-    return jsonify(results)
-
 @app.route("/api/add-replacement", methods=["POST"])
 def add_replacement():
     admin_key = request.headers.get("X-Admin-Key", "")
@@ -793,36 +437,29 @@ def add_replacement():
     try:
         with get_db() as conn:
             with conn.cursor() as cur:
-                cur.execute("INSERT INTO replacements (team, out_player, in_player, date, reason) VALUES (%s,%s,%s,%s,%s)",
-                            (team, out_player, in_player, date, reason))
+                cur.execute("INSERT INTO replacements (team, out_player, in_player, date, reason) VALUES (%s,%s,%s,%s,%s)", (team, out_player, in_player, date, reason))
             conn.commit()
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 @app.route("/api/replacements")
 def api_replacements():
     return jsonify({"replacements": get_all_replacements()})
-
 @app.route("/api/leaderboard")
 def api_leaderboard():
     lb, matches, cvc_changes = get_leaderboard()
     replacements = get_all_replacements()
     return jsonify({"leaderboard": lb, "matches": matches, "cvc_changes": cvc_changes, "replacements": replacements})
-
 @app.route("/api/teams")
 def api_teams():
     all_stats = get_all_stats()
     cvc_changes = get_all_cvc_changes()
-
-    # Build cvc_history
     cvc_history = {}
     for change in cvc_changes:
         team = change["team"]
         if team not in cvc_history:
             cvc_history[team] = []
         cvc_history[team].append(change)
-
     def get_cvc_at_time(owner, match_name):
         match_date = get_match_date(match_name)
         cvc_state = {}
@@ -840,8 +477,6 @@ def api_teams():
                         del cvc_state[to_player]
                     cvc_state[from_player] = change_type
         return cvc_state
-
-    # Build replacement lookup
     all_replacements = get_all_replacements()
     replacement_effective = {}
     for r in all_replacements:
@@ -849,21 +484,16 @@ def api_teams():
         if t not in replacement_effective:
             replacement_effective[t] = {}
         replacement_effective[t][r["in_player"]] = r["date"]
-
-    # Build player totals with date-aware multipliers per owner
     teams_out = {}
     for owner, team in TEAMS.items():
-        # Accumulate points per player using date-aware mult
         player_data = {}
         for stat in all_stats:
             name = normalize_name(stat["player"])
             match = stat["match"]
             raw_pts = stat["pts"]
-            # Check if this player is in this owner's team
             roster_names = [p["name"] for p in team["players"]]
             if name not in roster_names:
                 continue
-            # Skip if replacement player before effective date
             if owner in replacement_effective and name in replacement_effective[owner]:
                 effective_date = replacement_effective[owner][name]
                 if get_match_date(match) < effective_date:
@@ -876,48 +506,22 @@ def api_teams():
             player_data[name]["total_pts"] += raw_pts * mult
             player_data[name]["total_runs"] += stat.get("runs", 0)
             player_data[name]["total_wkts"] += stat.get("wickets", 0)
-            player_data[name]["matches"].append({
-                "match": match,
-                "pts": round(raw_pts * mult, 1),
-                "raw_pts": raw_pts,
-                "mult": mult,
-                "runs": stat.get("runs", 0),
-                "wkts": stat.get("wickets", 0),
-                "mom": stat.get("mom", 0)
-            })
-
+            player_data[name]["matches"].append({"match": match, "pts": round(raw_pts * mult, 1), "raw_pts": raw_pts, "mult": mult, "runs": stat.get("runs", 0), "wkts": stat.get("wickets", 0), "mom": stat.get("mom", 0)})
         players_out = []
         for p in team["players"]:
             name = p["name"]
             pd = player_data.get(name, {"total_pts": 0, "total_runs": 0, "total_wkts": 0, "matches": []})
-            # Current CVC for badge display
-            players_out.append({
-                "name": name,
-                "role": p["role"],
-                "ipl": p["ipl"],
-                "cvc": p["cvc"],
-                "ruled_out": p.get("ruled_out", False),
-                "raw_pts": round(sum(m["raw_pts"] for m in pd["matches"]), 1),
-                "display_pts": round(pd["total_pts"], 1),
-                "total_runs": pd["total_runs"],
-                "total_wkts": pd["total_wkts"],
-                "matches": sorted(pd["matches"], key=lambda m: get_match_order(m["match"])),
-            })
+            players_out.append({"name": name, "role": p["role"], "ipl": p["ipl"], "cvc": p["cvc"], "ruled_out": p.get("ruled_out", False), "raw_pts": round(sum(m["raw_pts"] for m in pd["matches"]), 1), "display_pts": round(pd["total_pts"], 1), "total_runs": pd["total_runs"], "total_wkts": pd["total_wkts"], "matches": sorted(pd["matches"], key=lambda m: get_match_order(m["match"]))})
         teams_out[owner] = sorted(players_out, key=lambda x: x["display_pts"], reverse=True)
-
     return jsonify({"teams": teams_out})
-
 @app.route("/api/players")
 def api_players():
     all_stats = get_all_stats()
-
-    # Deduplicate: for same player+match, keep the entry with highest pts
     deduped = {}
     for stat in all_stats:
         key = f"{stat['player']}|{stat['match']}"
         if key not in deduped or stat["pts"] > deduped[key]["pts"]:
             deduped[key] = stat
-
     player_totals = {}
     for stat in deduped.values():
         name = stat["player"]
@@ -927,235 +531,18 @@ def api_players():
         player_totals[name]["total_runs"] += stat.get("runs", 0)
         player_totals[name]["total_wkts"] += stat.get("wickets", 0)
         player_totals[name]["matches"].append({"match": stat["match"], "match_num": get_match_order(stat["match"]), "pts": stat["pts"], "runs": stat.get("runs", 0), "wkts": stat.get("wickets", 0), "mom": stat.get("mom", 0)})
-
     players = sorted(player_totals.values(), key=lambda x: x["total_pts"], reverse=True)
     for p in players:
         p["total_pts"] = round(p["total_pts"], 1)
         p["matches"] = sorted(p["matches"], key=lambda m: m["match_num"])
     return jsonify({"players": players})
-
-@app.route("/api/upload-scorecard-text", methods=["POST"])
-def upload_scorecard_text():
-    admin_key = request.headers.get("X-Admin-Key", "")
-    if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
-        return jsonify({"error": "Unauthorized"}), 401
-
-    data = request.get_json()
-    scorecard_text = data.get("text", "").strip()
-    match_name = data.get("match_name", "").strip()
-    mom_player = data.get("mom_player", "").strip()
-
-    if not scorecard_text or not match_name:
-        return jsonify({"error": "Scorecard text and match name required"}), 400
-
-    all_players = []
-    for team in TEAMS.values():
-        for p in team["players"]:
-            all_players.append(f"{p['name']} ({p['role']})")
-    players_context = "\n".join(all_players)
-
-    prompt = f"""You are reading an IPL cricket scorecard. Extract ALL player statistics from the text below.
-
-Known fantasy league players (use for name matching):
-{players_context}
-
-Scorecard text:
-{scorecard_text[:12000]}
-
-CRITICAL: Return ONLY ONE entry per player. Never duplicate. For players who bat AND bowl, merge into one entry combining all their stats.
-
-Return a JSON array with this exact structure:
-[
-  {{
-    "player": "exact player name",
-    "role": "Batsman" or "Bowler" or "All-rounder",
-    "runs": number,
-    "fours": number,
-    "sixes": number,
-    "wickets": number,
-    "catches": number,
-    "stumpings": number,
-    "maidens": number,
-    "dismissal": "Out" or "Not Out" or "DNB",
-    "mom": 0,
-    "hattrick": 0
-  }}
-]
-
-Rules:
-- ONE entry per player only — no duplicates whatsoever
-- Include ALL players from both teams
-- dismissal = "DNB" if did not bat, "Not Out" if not out, "Out" if dismissed
-- catches = catches taken in the field by this player
-- Return ONLY the JSON array, nothing else"""
-
-    try:
-        ai_response = client.messages.create(
-            model="claude-opus-4-5",
-            max_tokens=3000,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        raw = ai_response.content[0].text.strip()
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-        raw = raw.strip()
-
-        players_data = json.loads(raw)
-        new_entries = process_players(players_data, match_name, mom_player)
-        save_stats(new_entries)
-
-        mom_entry = next((e for e in new_entries if e.get("mom") == 1), None)
-        return jsonify({
-            "success": True,
-            "match": match_name,
-            "players_processed": len(new_entries),
-            "mom_applied_to": mom_entry["player"] if mom_entry else f"NOT APPLIED (received: '{mom_player}')",
-            "entries": new_entries
-        })
-
-    except json.JSONDecodeError as e:
-        return jsonify({"error": f"Could not parse scorecard: {str(e)}"}), 500
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route("/api/upload-scorecard-url", methods=["POST"])
-def upload_scorecard_url():
-    admin_key = request.headers.get("X-Admin-Key", "")
-    if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
-        return jsonify({"error": "Unauthorized"}), 401
-
-    data = request.get_json()
-    url = data.get("url", "").strip()
-    match_name = data.get("match_name", "").strip()
-    mom_player = data.get("mom_player", "").strip()
-
-    if not url or not match_name:
-        return jsonify({"error": "URL and match name required"}), 400
-
-    try:
-        # Try multiple proxies to bypass ESPNcricinfo's bot protection
-        proxies_to_try = [
-            f"https://corsproxy.io/?{req.utils.quote(url, safe='')}",
-            f"https://api.codetabs.com/v1/proxy?quest={req.utils.quote(url, safe='')}",
-        ]
-        html_content = None
-        last_error = None
-        for proxy_url in proxies_to_try:
-            try:
-                response = req.get(proxy_url, timeout=20, headers={"User-Agent": "Mozilla/5.0"})
-                if response.status_code == 200 and len(response.text) > 1000:
-                    html_content = response.text
-                    break
-            except Exception as e:
-                last_error = str(e)
-                continue
-
-        if not html_content:
-            return jsonify({"error": f"Could not fetch scorecard. Try using screenshot upload instead. ({last_error})"}), 500
-
-        soup = BeautifulSoup(html_content, "html.parser")
-        scorecard_text = soup.get_text(separator="\n", strip=True)
-        scorecard_text = scorecard_text[:12000]
-    except Exception as e:
-        return jsonify({"error": f"Could not fetch scorecard: {str(e)}"}), 500
-
-    all_players = []
-    for team in TEAMS.values():
-        for p in team["players"]:
-            all_players.append(f"{p['name']} ({p['role']})")
-    players_context = "\n".join(all_players)
-
-    prompt = f"""You are reading an IPL cricket scorecard from ESPNcricinfo. Extract ALL player statistics.
-
-Known fantasy league players (use these for name matching):
-{players_context}
-
-Scorecard text:
-{scorecard_text}
-
-Return a JSON array with one entry per player. Use this exact structure:
-[
-  {{
-    "player": "exact player name as shown",
-    "role": "Batsman" or "Bowler" or "All-rounder",
-    "runs": number,
-    "fours": number,
-    "sixes": number,
-    "wickets": number,
-    "catches": number,
-    "stumpings": number,
-    "maidens": number,
-    "dismissal": "Out" or "Not Out" or "DNB",
-    "mom": 0,
-    "hattrick": 0
-  }}
-]
-
-Rules:
-- Include ALL batsmen and bowlers from BOTH innings
-- dismissal = "DNB" if did not bat
-- dismissal = "Not Out" if not out
-- dismissal = "Out" if dismissed
-- catches = catches taken in the field by this player
-- Return ONLY the JSON array, nothing else"""
-
-    try:
-        ai_response = client.messages.create(
-            model="claude-opus-4-5",
-            max_tokens=3000,
-            messages=[{"role": "user", "content": prompt}]
-        )
-
-        raw = ai_response.content[0].text.strip()
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-        raw = raw.strip()
-
-        players_data = json.loads(raw)
-        new_entries = process_players(players_data, match_name, mom_player)
-        save_stats(new_entries)
-
-        return jsonify({
-            "success": True,
-            "match": match_name,
-            "players_processed": len(new_entries),
-            "entries": new_entries
-        })
-
-    except json.JSONDecodeError as e:
-        return jsonify({"error": f"Could not parse scorecard: {str(e)}"}), 500
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
 def process_players(players_data, match_name, mom_player):
-    """Shared logic for processing player data from any source."""
-    # Merge duplicate entries for the same player (batting + bowling combined)
     merged = {}
     for p in players_data:
         name = p["player"].strip()
         if name not in merged:
-            merged[name] = {
-                "player": name,
-                "role": p.get("role") or get_player_role(name),
-                "runs": p.get("runs", 0),
-                "fours": p.get("fours", 0),
-                "sixes": p.get("sixes", 0),
-                "wickets": p.get("wickets", 0),
-                "catches": p.get("catches", 0),
-                "stumpings": p.get("stumpings", 0),
-                "maidens": p.get("maidens", 0),
-                "dismissal": p.get("dismissal", "DNB"),
-                "mom": p.get("mom", 0),
-                "hattrick": p.get("hattrick", 0),
-            }
+            merged[name] = {"player": name, "role": p.get("role") or get_player_role(name), "runs": p.get("runs", 0), "fours": p.get("fours", 0), "sixes": p.get("sixes", 0), "wickets": p.get("wickets", 0), "catches": p.get("catches", 0), "stumpings": p.get("stumpings", 0), "maidens": p.get("maidens", 0), "dismissal": p.get("dismissal", "DNB"), "mom": p.get("mom", 0), "hattrick": p.get("hattrick", 0)}
         else:
-            # Merge — take the max of batting stats, add bowling stats
             m = merged[name]
             m["runs"] = max(m["runs"], p.get("runs", 0))
             m["fours"] = max(m["fours"], p.get("fours", 0))
@@ -1166,18 +553,14 @@ def process_players(players_data, match_name, mom_player):
             m["maidens"] = max(m["maidens"], p.get("maidens", 0))
             m["mom"] = max(m["mom"], p.get("mom", 0))
             m["hattrick"] = max(m["hattrick"], p.get("hattrick", 0))
-            # Keep non-DNB dismissal
             if p.get("dismissal", "DNB") != "DNB":
                 m["dismissal"] = p["dismissal"]
-            # Update role if it gives more info
             if p.get("role") in ["All-rounder", "Bowler"] and m["role"] == "Batsman":
                 m["role"] = p["role"]
-
     new_entries = []
     mom_applied = False
     for name, p in merged.items():
         pts = calculate_points(p)
-        # Apply MOM bonus from admin field
         if mom_player and not mom_applied:
             player_clean = name.strip().lower().replace(".", "").replace(" ", "")
             mom_clean = mom_player.strip().lower().replace(".", "").replace(" ", "")
@@ -1185,314 +568,56 @@ def process_players(players_data, match_name, mom_player):
                 pts += 10
                 p["mom"] = 1
                 mom_applied = True
-        entry = {
-            "match": match_name,
-            "player": name,
-            "role": p["role"],
-            "runs": p["runs"],
-            "fours": p["fours"],
-            "sixes": p["sixes"],
-            "wickets": p["wickets"],
-            "catches": p["catches"],
-            "stumpings": p["stumpings"],
-            "maidens": p["maidens"],
-            "dismissal": p["dismissal"],
-            "mom": p["mom"],
-            "hattrick": p["hattrick"],
-            "pts": pts,
-        }
-        new_entries.append(entry)
+        new_entries.append({"match": match_name, "player": name, "role": p["role"], "runs": p["runs"], "fours": p["fours"], "sixes": p["sixes"], "wickets": p["wickets"], "catches": p["catches"], "stumpings": p["stumpings"], "maidens": p["maidens"], "dismissal": p["dismissal"], "mom": p["mom"], "hattrick": p["hattrick"], "pts": pts})
     return new_entries
-
-
-@app.route("/api/upload-scorecard", methods=["POST"])
-def upload_scorecard():
-    admin_key = request.headers.get("X-Admin-Key", "")
-    if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
-        return jsonify({"error": "Unauthorized"}), 401
-
-    if "image" not in request.files:
-        return jsonify({"error": "No image provided"}), 400
-
-    match_name = request.form.get("match_name", "").strip()
-    if not match_name:
-        return jsonify({"error": "Match name required"}), 400
-
-    mom_player = request.form.get("mom_player", "").strip().lower()
-
-    image_file = request.files["image"]
-    image_data = base64.standard_b64encode(image_file.read()).decode("utf-8")
-    media_type = image_file.content_type or "image/png"
-
-    # Build known players list for context
-    all_players = []
-    for team in TEAMS.values():
-        for p in team["players"]:
-            all_players.append(f"{p['name']} ({p['role']})")
-    players_context = "\n".join(all_players)
-
-    prompt = f"""You are reading an IPL cricket scorecard image. Extract ALL player statistics visible.
-
-Known fantasy league players (for name matching):
-{players_context}
-
-CRITICAL: Return ONLY ONE entry per player. Never duplicate. For players who bat AND bowl, merge into one entry.
-
-Return a JSON array with this exact structure:
-[
-  {{
-    "player": "exact player name",
-    "role": "Batsman" or "Bowler" or "All-rounder",
-    "runs": number,
-    "fours": number,
-    "sixes": number,
-    "wickets": number,
-    "catches": number,
-    "stumpings": number,
-    "maidens": number,
-    "dismissal": "Out" or "Not Out" or "DNB",
-    "mom": 0,
-    "hattrick": 0
-  }}
-]
-
-Rules:
-- ONE entry per player only — no duplicates
-- dismissal = "DNB" if did not bat, "Not Out" if not out, "Out" if dismissed
-- catches = catches taken in the field
-- Return ONLY the JSON array, no other text
-
-Scorecard image is attached."""
-
-    try:
-        response = client.messages.create(
-            model="claude-opus-4-5",
-            max_tokens=2000,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": image_data}},
-                    {"type": "text", "text": prompt}
-                ]
-            }]
-        )
-
-        raw = response.content[0].text.strip()
-        # Strip markdown code fences if present
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-        raw = raw.strip()
-
-        players_data = json.loads(raw)
-        new_entries = process_players(players_data, match_name, mom_player)
-        save_stats(new_entries)
-
-        return jsonify({
-            "success": True,
-            "match": match_name,
-            "players_processed": len(new_entries),
-            "entries": new_entries
-        })
-
-    except json.JSONDecodeError as e:
-        return jsonify({"error": f"Could not parse scorecard data: {str(e)}", "raw": raw}), 500
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/add-mom", methods=["POST"])
-def add_mom():
-    admin_key = request.headers.get("X-Admin-Key", "")
-    if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
-        return jsonify({"error": "Unauthorized"}), 401
-
-    data = request.get_json()
-    player = data.get("player", "").strip()
-    match = data.get("match", "").strip()
-
-    if not player or not match:
-        return jsonify({"error": "Player and match required"}), 400
-
-    # Find and update in DB
-    try:
-        with get_db() as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT * FROM match_stats WHERE match=%s", (match,))
-                rows = [dict(r) for r in cur.fetchall()]
-                search_name = player.strip().lower().replace(".", "").replace(" ", "")
-                found = None
-                for row in rows:
-                    stat_name = row["player"].strip().lower().replace(".", "").replace(" ", "")
-                    if stat_name == search_name or search_name in stat_name or stat_name in search_name:
-                        found = row
-                        break
-                if not found:
-                    return jsonify({"error": f"Player '{player}' not found in match '{match}'."}), 404
-                if found["mom"] == 0:
-                    cur.execute("UPDATE match_stats SET mom=1, pts=pts+10 WHERE id=%s", (found["id"],))
-                    conn.commit()
-                return jsonify({"success": True, "player": found["player"], "match": match})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/cvc-change", methods=["POST"])
-def api_cvc_change():
-    admin_key = request.headers.get("X-Admin-Key", "")
-    if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
-        return jsonify({"error": "Unauthorized"}), 401
-
-    data = request.get_json()
-    team = data.get("team", "").strip()
-    change_type = data.get("type", "").strip()
-    from_player = data.get("from", "").strip()
-    to_player = data.get("to", "").strip()
-    date = data.get("date", "").strip()
-
-    if not all([team, change_type, from_player, to_player, date]):
-        return jsonify({"error": "All fields required"}), 400
-
-    if team not in TEAMS:
-        return jsonify({"error": "Unknown team"}), 400
-
-    save_cvc_change({
-        "team": team,
-        "type": change_type,
-        "from": from_player,
-        "to": to_player,
-        "date": date,
-        "penalty": -150 if change_type == "C" else -75
-    })
-
-    return jsonify({"success": True})
-
-@app.route("/api/delete-cvc", methods=["POST"])
-def delete_cvc():
-    admin_key = request.headers.get("X-Admin-Key", "")
-    if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
-        return jsonify({"error": "Unauthorized"}), 401
-
-    data = request.get_json()
-    cvc_id = data.get("id")
-    if not cvc_id:
-        return jsonify({"error": "ID required"}), 400
-
-    try:
-        with get_db() as conn:
-            with conn.cursor() as cur:
-                cur.execute("DELETE FROM cvc_changes WHERE id=%s", (cvc_id,))
-                deleted = cur.rowcount
-            conn.commit()
-        return jsonify({"success": True, "deleted": deleted})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/rename-match", methods=["POST"])
-def rename_match():
-    admin_key = request.headers.get("X-Admin-Key", "")
-    if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
-        return jsonify({"error": "Unauthorized"}), 401
-
-    data = request.get_json()
-    old_name = data.get("old_name", "").strip()
-    new_name = data.get("new_name", "").strip()
-
-    if not old_name or not new_name:
-        return jsonify({"error": "Both old and new match names required"}), 400
-
-    try:
-        with get_db() as conn:
-            with conn.cursor() as cur:
-                cur.execute("UPDATE match_stats SET match=%s WHERE match=%s", (new_name, old_name))
-                updated = cur.rowcount
-            conn.commit()
-        return jsonify({"success": True, "old_name": old_name, "new_name": new_name, "rows_updated": updated})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/cvc-changes")
-def api_cvc_changes():
-    return jsonify({"changes": get_all_cvc_changes()})
-
-@app.route("/api/matches")
-def api_matches():
-    all_stats = get_all_stats()
-    matches = sorted(list(set(s["match"] for s in all_stats)))
-    return jsonify({"matches": matches})
-
 @app.route("/api/fetch-scorecard", methods=["POST"])
 def fetch_scorecard():
-    """Fetch scorecard from CricketData.org API and process it."""
     admin_key = request.headers.get("X-Admin-Key", "")
     if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
         return jsonify({"error": "Unauthorized"}), 401
-
     data = request.get_json()
     match_name = data.get("match_name", "").strip()
     match_id = data.get("match_id", "").strip()
     mom_player = data.get("mom_player", "").strip()
-
     if not match_name or not match_id:
         return jsonify({"error": "Match name and match ID required"}), 400
-
     api_key = os.environ.get("CRICKETDATA_API_KEY", "")
     if not api_key:
         return jsonify({"error": "CricketData API key not configured"}), 500
-
     try:
         url = f"https://api.cricapi.com/v1/match_scorecard?apikey={api_key}&id={match_id}"
         response = req.get(url, timeout=15)
         response.raise_for_status()
         result = response.json()
-
         if result.get("status") != "success":
             return jsonify({"error": f"API error: {result.get('reason', result.get('message', 'Unknown error'))}"}), 500
-
         scorecard_data = result.get("data", {})
         innings_list = scorecard_data.get("scorecard", [])
-
         if not innings_list:
             return jsonify({"error": "No scorecard data available for this match"}), 500
-
-        # Build player stats directly from API structure
-        players = {}  # name -> stats dict
-
+        players = {}
         def get_or_create(name):
             if name not in players:
-                players[name] = {"player": name, "role": get_player_role(name),
-                                 "runs": 0, "fours": 0, "sixes": 0, "wickets": 0,
-                                 "catches": 0, "stumpings": 0, "maidens": 0,
-                                 "dismissal": "DNB", "mom": 0, "hattrick": 0}
+                players[name] = {"player": name, "role": get_player_role(name), "runs": 0, "fours": 0, "sixes": 0, "wickets": 0, "catches": 0, "stumpings": 0, "maidens": 0, "dismissal": "DNB", "mom": 0, "hattrick": 0}
             return players[name]
-
-        # Pass 1: ALL batting across both innings first
         for innings in innings_list:
             for bat in innings.get("batting", []):
                 name = bat["batsman"]["name"]
                 p = get_or_create(name)
                 dismissal_text = bat.get("dismissal-text", "")
-                if dismissal_text == "not out":
-                    dismissal = "Not Out"
-                elif dismissal_text:
-                    dismissal = "Out"
-                else:
-                    dismissal = "DNB"
+                dismissal = "Not Out" if dismissal_text == "not out" else ("Out" if dismissal_text else "DNB")
                 if bat.get("r", 0) > p["runs"]:
                     p["runs"] = bat.get("r", 0)
                     p["fours"] = bat.get("4s", 0)
                     p["sixes"] = bat.get("6s", 0)
                 if dismissal != "DNB":
                     p["dismissal"] = dismissal
-
-        # Pass 2: ALL bowling across both innings
         for innings in innings_list:
             for bowl in innings.get("bowling", []):
                 name = bowl["bowler"]["name"]
                 p = get_or_create(name)
                 p["wickets"] += bowl.get("w", 0)
                 p["maidens"] += bowl.get("m", 0)
-
-        # Pass 3: ALL catching across both innings
         for innings in innings_list:
             for catch in innings.get("catching", []):
                 catcher_info = catch.get("catcher", {})
@@ -1509,33 +634,34 @@ def fetch_scorecard():
                 p = get_or_create(matched_name)
                 p["catches"] += catch.get("catch", 0)
                 p["stumpings"] += catch.get("stumped", 0)
-
-        # Convert to list and process points
-        players_data = list(players.values())
-        new_entries = process_players(players_data, match_name, mom_player)
+        new_entries = process_players(list(players.values()), match_name, mom_player)
         save_stats(new_entries)
-
-        return jsonify({
-            "success": True,
-            "match": match_name,
-            "players_processed": len(new_entries),
-            "entries": new_entries
-        })
-
+        return jsonify({"success": True, "match": match_name, "players_processed": len(new_entries), "entries": new_entries})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
+@app.route("/api/delete-all-matches", methods=["POST"])
+def delete_all_matches():
+    admin_key = request.headers.get("X-Admin-Key", "")
+    if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM match_stats")
+                deleted = cur.rowcount
+            conn.commit()
+        return jsonify({"success": True, "rows_deleted": deleted})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 @app.route("/api/delete-match", methods=["POST"])
 def delete_match():
     admin_key = request.headers.get("X-Admin-Key", "")
     if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
         return jsonify({"error": "Unauthorized"}), 401
-
     data = request.get_json()
     match_name = data.get("match_name", "").strip()
     if not match_name:
         return jsonify({"error": "Match name required"}), 400
-
     try:
         with get_db() as conn:
             with conn.cursor() as cur:
@@ -1545,21 +671,17 @@ def delete_match():
         return jsonify({"success": True, "match": match_name, "rows_deleted": deleted})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 @app.route("/api/adjust-points", methods=["POST"])
 def adjust_points():
     admin_key = request.headers.get("X-Admin-Key", "")
     if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
         return jsonify({"error": "Unauthorized"}), 401
-
     data = request.get_json()
     player = data.get("player", "").strip()
     match = data.get("match", "").strip()
     adjustment = data.get("adjustment", 0)
-
     if not player or not match:
         return jsonify({"error": "Player and match required"}), 400
-
     try:
         with get_db() as conn:
             with conn.cursor() as cur:
@@ -1580,7 +702,98 @@ def adjust_points():
                 return jsonify({"success": True, "player": found["player"], "match": match, "old_pts": found["pts"], "new_pts": new_pts})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
+@app.route("/api/add-mom", methods=["POST"])
+def add_mom():
+    admin_key = request.headers.get("X-Admin-Key", "")
+    if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    player = data.get("player", "").strip()
+    match = data.get("match", "").strip()
+    if not player or not match:
+        return jsonify({"error": "Player and match required"}), 400
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM match_stats WHERE match=%s", (match,))
+                rows = [dict(r) for r in cur.fetchall()]
+                search_name = player.strip().lower().replace(".", "").replace(" ", "")
+                found = None
+                for row in rows:
+                    stat_name = row["player"].strip().lower().replace(".", "").replace(" ", "")
+                    if stat_name == search_name or search_name in stat_name or stat_name in search_name:
+                        found = row
+                        break
+                if not found:
+                    return jsonify({"error": f"Player '{player}' not found in match '{match}'."}), 404
+                if found["mom"] == 0:
+                    cur.execute("UPDATE match_stats SET mom=1, pts=pts+10 WHERE id=%s", (found["id"],))
+                    conn.commit()
+                return jsonify({"success": True, "player": found["player"], "match": match})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+@app.route("/api/cvc-change", methods=["POST"])
+def api_cvc_change():
+    admin_key = request.headers.get("X-Admin-Key", "")
+    if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    team = data.get("team", "").strip()
+    change_type = data.get("type", "").strip()
+    from_player = data.get("from", "").strip()
+    to_player = data.get("to", "").strip()
+    date = data.get("date", "").strip()
+    if not all([team, change_type, from_player, to_player, date]):
+        return jsonify({"error": "All fields required"}), 400
+    if team not in TEAMS:
+        return jsonify({"error": "Unknown team"}), 400
+    save_cvc_change({"team": team, "type": change_type, "from": from_player, "to": to_player, "date": date, "penalty": -150 if change_type == "C" else -75})
+    return jsonify({"success": True})
+@app.route("/api/delete-cvc", methods=["POST"])
+def delete_cvc():
+    admin_key = request.headers.get("X-Admin-Key", "")
+    if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    cvc_id = data.get("id")
+    if not cvc_id:
+        return jsonify({"error": "ID required"}), 400
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM cvc_changes WHERE id=%s", (cvc_id,))
+                deleted = cur.rowcount
+            conn.commit()
+        return jsonify({"success": True, "deleted": deleted})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+@app.route("/api/rename-match", methods=["POST"])
+def rename_match():
+    admin_key = request.headers.get("X-Admin-Key", "")
+    if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    old_name = data.get("old_name", "").strip()
+    new_name = data.get("new_name", "").strip()
+    if not old_name or not new_name:
+        return jsonify({"error": "Both old and new match names required"}), 400
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("UPDATE match_stats SET match=%s WHERE match=%s", (new_name, old_name))
+                updated = cur.rowcount
+            conn.commit()
+        return jsonify({"success": True, "old_name": old_name, "new_name": new_name, "rows_updated": updated})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+@app.route("/api/cvc-changes")
+def api_cvc_changes():
+    return jsonify({"changes": get_all_cvc_changes()})
+@app.route("/api/matches")
+def api_matches():
+    all_stats = get_all_stats()
+    matches = sorted(list(set(s["match"] for s in all_stats)))
+    return jsonify({"matches": matches})
 @app.route("/api/banter-reactions", methods=["GET"])
 def get_banter_reactions():
     try:
@@ -1596,7 +809,6 @@ def get_banter_reactions():
         return jsonify(result)
     except Exception as e:
         return jsonify({}), 500
-
 @app.route("/api/banter-reactions", methods=["POST"])
 def update_banter_reaction():
     data = request.get_json()
@@ -1608,19 +820,12 @@ def update_banter_reaction():
     try:
         with get_db() as conn:
             with conn.cursor() as cur:
-                cur.execute("""
-                    INSERT INTO banter_reactions (match, emoji, count)
-                    VALUES (%s, %s, %s)
-                    ON CONFLICT (match, emoji) DO UPDATE
-                    SET count = GREATEST(0, banter_reactions.count + %s)
-                    RETURNING count
-                """, (match, emoji, max(0, delta), delta))
+                cur.execute("INSERT INTO banter_reactions (match, emoji, count) VALUES (%s, %s, %s) ON CONFLICT (match, emoji) DO UPDATE SET count = GREATEST(0, banter_reactions.count + %s) RETURNING count", (match, emoji, max(0, delta), delta))
                 new_count = cur.fetchone()["count"]
             conn.commit()
         return jsonify({"success": True, "count": new_count})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 @app.route("/api/banter-comments/<path:match>", methods=["GET"])
 def get_banter_comments(match):
     try:
@@ -1634,7 +839,6 @@ def get_banter_comments(match):
         return jsonify(rows)
     except Exception as e:
         return jsonify([]), 500
-
 @app.route("/api/banter-comments", methods=["POST"])
 def add_banter_comment():
     data = request.get_json()
@@ -1654,7 +858,6 @@ def add_banter_comment():
         return jsonify({"success": True, "id": new_id})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 @app.route("/api/generate-banter", methods=["POST"])
 def generate_banter():
     data = request.get_json()
@@ -1662,8 +865,6 @@ def generate_banter():
     match = data.get("match", "").strip()
     if not prompt:
         return jsonify({"error": "No prompt"}), 400
-
-    # Check DB cache first
     if match:
         try:
             with get_db() as conn:
@@ -1674,235 +875,21 @@ def generate_banter():
                         return jsonify({"banter": row["banter"], "cached": True})
         except Exception:
             pass
-
-    # Generate new banter
     try:
-        response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=300,
-            messages=[{"role": "user", "content": prompt}]
-        )
+        response = client.messages.create(model="claude-haiku-4-5-20251001", max_tokens=300, messages=[{"role": "user", "content": prompt}])
         banter = response.content[0].text.strip()
-
-        # Save to DB cache — keep only 5 most recent
         if match:
             try:
                 with get_db() as conn:
                     with conn.cursor() as cur:
-                        cur.execute("""
-                            INSERT INTO banter_cache (match, banter)
-                            VALUES (%s, %s)
-                            ON CONFLICT (match) DO NOTHING
-                        """, (match, banter))
-                        # Delete oldest if more than 5
-                        cur.execute("""
-                            DELETE FROM banter_cache
-                            WHERE match NOT IN (
-                                SELECT match FROM banter_cache
-                                ORDER BY created_at DESC
-                                LIMIT 5
-                            )
-                        """)
+                        cur.execute("INSERT INTO banter_cache (match, banter) VALUES (%s, %s) ON CONFLICT (match) DO NOTHING", (match, banter))
+                        cur.execute("DELETE FROM banter_cache WHERE match NOT IN (SELECT match FROM banter_cache ORDER BY created_at DESC LIMIT 5)")
                     conn.commit()
             except Exception:
                 pass
-
         return jsonify({"banter": banter})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
-
-
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=False)
-
-
-# ─── AUTO FETCH SCHEDULER ─────────────────────────────────────────────────────
-
-IPL_SERIES_ID = "87c62aac-bc3c-4738-ab93-19da0690488f"
-
-MATCH_IDS = {
-    "RCB vs SRH": "547b47e3-b2d9-4f51-8a49-8e7e4c946a6e",
-    "MI vs KKR": "950a9aad-a1a7-46ef-9dcd-d25dec7964af",
-    "RR vs CSK": "1412721c-3b2b-4703-89c7-f86f5ea81048",
-    "PBKS vs GT": "235b2c68-326a-49e0-959a-def9fe3b5736",
-    "LSG vs DC": "962d1940-4fea-4e71-97ca-5fc2c008169f",
-    "KKR vs SRH": "22fb99f0-77c2-4724-9375-32a82a0b2a70",
-    "CSK vs PBKS": "59353457-477e-4c7b-b367-e312d5474744",
-    "MI vs DC": "19455906-a0a9-4959-a591-c5aee00b3e1b",
-    "RR vs GT": "8f54d791-e6be-4638-9d30-862329e5ebc7",
-    "SRH vs LSG": "9186c79f-2121-4fc4-bb8d-3c411b417609",
-    "RCB vs CSK": "69d5e465-e2e5-4616-aa22-8d069c2dc0fe",
-    "KKR vs PBKS": "12b5d808-d9ab-468e-bd25-a2c347f64bdc",
-    "RR vs MI": "3dd82a3e-52e3-409b-bb9c-ef458942a7a2",
-    "DC vs GT": "5945bbf4-b6b5-45b6-abac-db03e8a39130",
-    "KKR vs LSG": "2d6c0b86-76c0-4795-96a4-e252f575d2d9",
-    "RR vs RCB": "3ec1f721-7f79-49e3-bbc1-69e88b9cf4a3",
-    "PBKS vs SRH": "8f0a09ba-2a87-4b94-9a61-d729ef8c0c14",
-    "CSK vs DC": "d8d0937a-8bd7-47b0-acbc-00d381578f85",
-    "LSG vs GT": "823d67eb-102e-4b60-93a0-1911a150d626",
-    "MI vs RCB": "b85f1b39-5766-46c7-9cea-14a64e0750b3",
-    "SRH vs RR": "d8360a13-342f-45b7-9f71-060e852777ec",
-    "CSK vs KKR": "8b691738-66b3-4774-a7fd-5a2113a54ca5",
-    "RCB vs LSG": "55e260bc-4aa7-44de-92e7-6bbd1edbb711",
-    "MI vs PBKS": "6289a2c9-75ee-49e1-9b83-ad7df53dcc21",
-    "GT vs KKR": "b481f31f-5ad7-4218-8a6e-16fc34d38048",
-    "RCB vs DC": "549ba395-31e9-477b-ba2c-a2a0dd1cbec9",
-    "SRH vs CSK": "c5bf2a95-1855-463d-accf-9c1db88418cd",
-    "KKR vs RR": "fb4d7e4a-c420-45f2-9f2f-d45ce094efbc",
-    "PBKS vs LSG": "ca8f24c0-6eef-4f8e-b50f-c63fc2b1ca98",
-    "GT vs MI": "97adf747-1086-489e-b892-3823ebffa555",
-    "SRH vs DC": "e4f4995f-036e-451d-861e-42567c82d87f",
-    "LSG vs RR": "b8ec0cee-4d2f-456d-a815-a987e806f99a",
-    "MI vs CSK": "50520170-15b4-49e3-8180-835202e8f623",
-    "RCB vs GT": "ed074a44-a661-4727-83a7-4a33c2a05165",
-    "DC vs PBKS": "7bd928c0-1961-4fb5-a7a7-acd61c4a1586",
-    "RR vs SRH": "3d5968a6-4851-410c-b66a-811b92406933",
-    "GT vs CSK": "690985d0-c890-434a-bece-fb02d59b09d2",
-    "LSG vs KKR": "fbd861ca-4efb-4d1d-b46c-ba3bc334bce4",
-    "DC vs RCB": "63c19cfb-3544-41df-8bd8-10049818a6c5",
-    "PBKS vs RR": "8fbd3678-6299-4e67-8c28-74d4952b6ae7",
-    "MI vs SRH": "05d33d50-3efe-42f9-98f7-1f363a2f153a",
-    "GT vs RCB": "7e0789c4-6bdc-48da-a67f-49213f6d731e",
-    "RR vs DC": "3093f73b-639c-464c-8497-b6b238b5b9af",
-    "CSK vs MI": "d2cceca7-65d7-441e-8483-4505fd7cd073",
-    "SRH vs KKR": "1153edf6-3ae1-4722-be1e-0256495b49cb",
-    "GT vs PBKS": "f039998e-28b0-4445-b431-8bbccbbc6f1f",
-    "MI vs LSG": "ed18f7e9-d348-4ace-bfcd-9639096c6808",
-    "DC vs CSK": "4804409b-28ee-4f3e-ab55-a4a4cb090198",
-    "SRH vs PBKS": "312ba6aa-5e93-4673-bb0c-cb207fdc9e2d",
-    "LSG vs RCB": "8b326da3-8ff6-4e64-abe4-cb430d7a6c53",
-    "DC vs KKR": "90d5c075-3c9a-40b7-ab45-80a36a3a2351",
-    "RR vs GT": "6ffec712-6562-490c-a4fa-ae4b6ae59188",
-    "CSK vs LSG": "6aced947-319c-4e4a-9214-6f94f14c043e",
-    "RCB vs MI": "02d3614d-9727-43c5-a80c-0bf46c7499c6",
-    "PBKS vs DC": "ee5ab0d9-acd2-42bf-b5bc-f4d287e0f434",
-    "GT vs SRH": "9413d7dd-bf8e-49f6-8ce7-91faf29a0115",
-    "RCB vs KKR": "0b3bab15-12b2-4a16-9f41-1096e40ff202",
-    "PBKS vs MI": "6666db12-b9cc-49f0-b3af-5628fc8c53fa",
-    "LSG vs CSK": "68746b1f-d4b0-4f0a-a46a-46a1946aae32",
-    "KKR vs GT": "166633a2-cecb-4cf3-a984-78dc898b5345",
-    "PBKS vs RCB": "288e3406-3692-400a-bc22-fb8cfa0db2ca",
-    "DC vs RR": "990e89ea-3f6a-4196-ac73-7ad1a5f8c451",
-    "CSK vs SRH": "8416c2a9-4a74-4ac2-a6ae-5ad2538cbc56",
-    "RR vs LSG": "3b225f44-ddf2-41d4-8079-7a3f81876e35",
-    "KKR vs MI": "5b1d59f9-51fd-449d-8cf1-9fc15ef15675",
-    "CSK vs GT": "fd660ab1-c4bf-4c0f-b1b9-7232361cd1e8",
-    "SRH vs RCB": "bf23431b-ba1c-4147-94d9-b8d361a3ce9e",
-    "LSG vs PBKS": "7134216b-553c-4099-82a8-ee48bd9c46f3",
-    "MI vs RR": "c0d94cec-8a67-4414-80af-81e7d4a9ee9a",
-    "KKR vs DC": "8f61d649-f53b-4e79-9bfb-661cfe69be3b",
-}
-
-def get_already_fetched_matches():
-    try:
-        with get_db() as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT DISTINCT match FROM match_stats")
-                return [row["match"] for row in cur.fetchall()]
-    except Exception as e:
-        print(f"Scheduler: DB error: {e}")
-        return []
-
-def auto_fetch_completed_matches():
-    api_key = os.environ.get("CRICKETDATA_API_KEY", "")
-    if not api_key:
-        return
-    try:
-        url = f"https://api.cricapi.com/v1/series_info?apikey={api_key}&id={IPL_SERIES_ID}"
-        response = req.get(url, timeout=15)
-        data = response.json()
-        if data.get("status") != "success":
-            return
-        match_list = data.get("data", {}).get("matchList", [])
-        already_fetched = get_already_fetched_matches()
-        for match in match_list:
-            if not match.get("matchEnded"):
-                continue
-            match_id = match.get("id")
-            match_name = None
-            for name, mid in MATCH_IDS.items():
-                if mid == match_id:
-                    match_name = name
-                    break
-            if not match_name:
-                continue
-            parts = match_name.split(" vs ")
-            reversed_name = f"{parts[1]} vs {parts[0]}" if len(parts) == 2 else match_name
-            if match_name in already_fetched or reversed_name in already_fetched:
-                continue
-            print(f"Scheduler: Auto-fetching {match_name}...")
-            try:
-                sc_url = f"https://api.cricapi.com/v1/match_scorecard?apikey={api_key}&id={match_id}"
-                sc_response = req.get(sc_url, timeout=15)
-                sc_data = sc_response.json()
-                if sc_data.get("status") != "success":
-                    continue
-                innings_list = sc_data.get("data", {}).get("scorecard", [])
-                if not innings_list:
-                    continue
-                players = {}
-                def get_or_create_s(name):
-                    if name not in players:
-                        players[name] = {"player": name, "role": get_player_role(name),
-                                         "runs": 0, "fours": 0, "sixes": 0, "wickets": 0,
-                                         "catches": 0, "stumpings": 0, "maidens": 0,
-                                         "dismissal": "DNB", "mom": 0, "hattrick": 0}
-                    return players[name]
-                for innings in innings_list:
-                    for bat in innings.get("batting", []):
-                        name = bat["batsman"]["name"]
-                        p = get_or_create_s(name)
-                        dt = bat.get("dismissal-text", "")
-                        dismissal = "Not Out" if dt == "not out" else ("Out" if dt else "DNB")
-                        if bat.get("r", 0) > p["runs"]:
-                            p["runs"] = bat.get("r", 0)
-                            p["fours"] = bat.get("4s", 0)
-                            p["sixes"] = bat.get("6s", 0)
-                        if dismissal != "DNB":
-                            p["dismissal"] = dismissal
-                for innings in innings_list:
-                    for bowl in innings.get("bowling", []):
-                        name = bowl["bowler"]["name"]
-                        p = get_or_create_s(name)
-                        p["wickets"] += bowl.get("w", 0)
-                        p["maidens"] += bowl.get("m", 0)
-                for innings in innings_list:
-                    for catch in innings.get("catching", []):
-                        catcher_info = catch.get("catcher", {})
-                        name = catcher_info.get("name", "")
-                        if not name:
-                            continue
-                        alt_names = catcher_info.get("altnames", [])
-                        matched_name = name
-                        if name not in players:
-                            for alt in alt_names:
-                                if alt in players:
-                                    matched_name = alt
-                                    break
-                        p = get_or_create_s(matched_name)
-                        p["catches"] += catch.get("catch", 0)
-                        p["stumpings"] += catch.get("stumped", 0)
-                new_entries = process_players(list(players.values()), match_name, "")
-                save_stats(new_entries)
-                print(f"Scheduler: Fetched {match_name} — {len(new_entries)} players")
-            except Exception as e:
-                print(f"Scheduler: Error fetching {match_name}: {e}")
-    except Exception as e:
-        print(f"Scheduler: Error: {e}")
-
-try:
-    if APSCHEDULER_AVAILABLE:
-        scheduler = BackgroundScheduler()
-        scheduler.add_job(auto_fetch_completed_matches, 'interval', hours=1, id='auto_fetch')
-        scheduler.start()
-        print("Scheduler started")
-    else:
-        print("APScheduler not available — auto-fetch disabled")
-except Exception as e:
-    print(f"Scheduler not started: {e}")
