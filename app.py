@@ -123,7 +123,7 @@ TEAMS = {
         {"name":"Marcus Stoinis","role":"All-rounder","ipl":"PK","cvc":None},
         {"name":"Naman Dhir","role":"Batsman","ipl":"MI","cvc":None},
         {"name":"Shardul Thakur","role":"All-rounder","ipl":"MI","cvc":None},
-        {"name":"Anrich Nortje","role":"Bowler","ipl":"LSG","cvc":None},
+        {"name":"Anrich Nortje","role":"Bowler","ipl":"LSG","cvc":None,"ruled_out":True},
         {"name":"Kagiso Rabada","role":"Bowler","ipl":"GT","cvc":None},
     ]},
     "Vikram Jumani": {"players": [
