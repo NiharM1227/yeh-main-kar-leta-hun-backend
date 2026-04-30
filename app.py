@@ -297,6 +297,7 @@ NAME_ALIASES = {
     "KL Rahul": "KL Rahul",
     "Digvesh Singh Rathi": "Digvesh Rathi",
     "Vijaykumar Vyshak": "Vyshak Vijaykumar",
+    "Abishek Porel": "Abhishek Porel",
 }
 def normalize_name(name):
     if name in NAME_ALIASES:
@@ -508,11 +509,24 @@ def api_teams():
             player_data[name]["total_runs"] += stat.get("runs", 0)
             player_data[name]["total_wkts"] += stat.get("wickets", 0)
             player_data[name]["matches"].append({"match": match, "pts": round(raw_pts * mult, 1), "raw_pts": raw_pts, "mult": mult, "runs": stat.get("runs", 0), "wkts": stat.get("wickets", 0), "mom": stat.get("mom", 0)})
+        # Compute current CVC state using change history for badge display
+        current_cvc = {}
+        for p in team["players"]:
+            if p["cvc"] in ("C", "VC"):
+                current_cvc[p["name"]] = p["cvc"]
+        if owner in cvc_history:
+            for change in sorted(cvc_history[owner], key=lambda c: c["date"]):
+                t = change["type"]
+                fp = change["from_player"]
+                tp = change["to_player"]
+                if fp in current_cvc and current_cvc[fp] == t:
+                    del current_cvc[fp]
+                current_cvc[tp] = t
         players_out = []
         for p in team["players"]:
             name = p["name"]
             pd = player_data.get(name, {"total_pts": 0, "total_runs": 0, "total_wkts": 0, "matches": []})
-            players_out.append({"name": name, "role": p["role"], "ipl": p["ipl"], "cvc": p["cvc"], "ruled_out": p.get("ruled_out", False), "raw_pts": round(sum(m["raw_pts"] for m in pd["matches"]), 1), "display_pts": round(pd["total_pts"], 1), "total_runs": pd["total_runs"], "total_wkts": pd["total_wkts"], "matches": sorted(pd["matches"], key=lambda m: get_match_order(m["match"]))})
+            players_out.append({"name": name, "role": p["role"], "ipl": p["ipl"], "cvc": current_cvc.get(name), "ruled_out": p.get("ruled_out", False), "raw_pts": round(sum(m["raw_pts"] for m in pd["matches"]), 1), "display_pts": round(pd["total_pts"], 1), "total_runs": pd["total_runs"], "total_wkts": pd["total_wkts"], "matches": sorted(pd["matches"], key=lambda m: get_match_order(m["match"]))})
         teams_out[owner] = sorted(players_out, key=lambda x: x["display_pts"], reverse=True)
     return jsonify({"teams": teams_out})
 @app.route("/api/players")
@@ -540,7 +554,7 @@ def api_players():
 def process_players(players_data, match_name, mom_player):
     merged = {}
     for p in players_data:
-        name = p["player"].strip()
+        name = normalize_name(p["player"].strip())
         if name not in merged:
             merged[name] = {"player": name, "role": p.get("role") or get_player_role(name), "runs": p.get("runs", 0), "fours": p.get("fours", 0), "sixes": p.get("sixes", 0), "wickets": p.get("wickets", 0), "catches": p.get("catches", 0), "stumpings": p.get("stumpings", 0), "maidens": p.get("maidens", 0), "dismissal": p.get("dismissal", "DNB"), "mom": p.get("mom", 0), "hattrick": p.get("hattrick", 0)}
         else:
