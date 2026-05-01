@@ -39,6 +39,7 @@
   <input type="text" id="api-match-name" placeholder="Match name e.g. CSK vs MI">
   <input type="text" id="api-match-id" placeholder="CricketData match ID">
   <input type="text" id="api-mom-player" placeholder="Man of the Match (optional)">
+  <input type="text" id="api-espn-id" placeholder="ESPN Match ID (optional fallback)">
   <button class="btn" id="api-fetch-btn" onclick="fetchFromAPI()" style="margin-bottom:8px">Fetch Scorecard from API</button>
   <div class="result" id="api-result" style="margin-top:12px;display:none;"></div>
 </div>
@@ -64,10 +65,11 @@ async function fetchFromAPI() {
   resultEl.innerHTML = '⏳ Fetching scorecard from CricketData...';
 
   try {
-    const res = await fetch('/api/fetch-scorecard', {
+    const espnId = document.getElementById('api-espn-id').value.trim();
+  const res = await fetch('/api/fetch-scorecard', {
       method: 'POST',
       headers: { 'X-Admin-Key': key, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ match_name: matchName, match_id: matchId, mom_player: momPlayer })
+      body: JSON.stringify({ match_name: matchName, match_id: matchId, mom_player: momPlayer, espn_match_id: espnId })
     });
     const data = await res.json();
     btn.disabled = false;
