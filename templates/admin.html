@@ -52,12 +52,13 @@ async function fetchFromAPI() {
   const matchName = document.getElementById('api-match-name').value.trim();
   const matchId = document.getElementById('api-match-id').value.trim();
   const momPlayer = document.getElementById('api-mom-player').value.trim();
+  const espnId = document.getElementById('api-espn-id').value.trim();
   const resultEl = document.getElementById('api-result');
   const btn = document.getElementById('api-fetch-btn');
 
   if (!key) { alert('Enter admin key'); return; }
   if (!matchName) { alert('Enter match name'); return; }
-  if (!matchId) { alert('Enter match ID from CricketData'); return; }
+  if (!matchId && !espnId) { alert('Enter either a CricketData match ID or ESPN Match ID'); return; }
 
   btn.disabled = true;
   resultEl.style.display = 'block';
@@ -65,8 +66,7 @@ async function fetchFromAPI() {
   resultEl.innerHTML = '⏳ Fetching scorecard from CricketData...';
 
   try {
-    const espnId = document.getElementById('api-espn-id').value.trim();
-  const res = await fetch('/api/fetch-scorecard', {
+    const res = await fetch('/api/fetch-scorecard', {
       method: 'POST',
       headers: { 'X-Admin-Key': key, 'Content-Type': 'application/json' },
       body: JSON.stringify({ match_name: matchName, match_id: matchId, mom_player: momPlayer, espn_match_id: espnId })
