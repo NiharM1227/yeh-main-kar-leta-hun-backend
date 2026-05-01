@@ -585,6 +585,78 @@ def process_players(players_data, match_name, mom_player):
                 mom_applied = True
         new_entries.append({"match": match_name, "player": name, "role": p["role"], "runs": p["runs"], "fours": p["fours"], "sixes": p["sixes"], "wickets": p["wickets"], "catches": p["catches"], "stumpings": p["stumpings"], "maidens": p["maidens"], "dismissal": p["dismissal"], "mom": p["mom"], "hattrick": p["hattrick"], "pts": pts})
     return new_entries
+
+def scrape_espncricinfo(espn_match_id, match_name, mom_player):
+    """Scrape scorecard from ESPNcricinfo as fallback"""
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+        }
+        url = f'https://www.espncricinfo.com/matches/engine/match/{espn_match_id}.json'
+        response = req.get(url, headers=headers, timeout=15)
+        response.raise_for_status()
+        data = response.json()
+        
+        players = {}
+        
+        def get_or_create(name):
+            if name not in players:
+                players[name] = {"player": name, "role": get_player_role(name), "runs": 0, "fours": 0, "sixes": 0, "wickets": 0, "catches": 0, "stumpings": 0, "maidens": 0, "dismissal": "DNB", "mom": 0, "hattrick": 0}
+            return players[name]
+        
+        innings_list = data.get("innings", [])
+        for innings in innings_list:
+            # Batting
+            for bat in innings.get("batsmen", []):
+                name = bat.get("batting_name", "") or bat.get("name", "")
+                if not name:
+                    continue
+                p = get_or_create(name)
+                runs = int(bat.get("runs", 0) or 0)
+                fours = int(bat.get("fours", 0) or 0)
+                sixes = int(bat.get("sixes", 0) or 0)
+                how_out = bat.get("how_out", "") or ""
+                if runs > p["runs"]:
+                    p["runs"] = runs
+                    p["fours"] = fours
+                    p["sixes"] = sixes
+                if how_out:
+                    if "not out" in how_out.lower() or how_out.strip() == "*":
+                        p["dismissal"] = "Not Out"
+                    elif how_out.strip():
+                        p["dismissal"] = "Out"
+            
+            # Bowling
+            for bowl in innings.get("bowlers", []):
+                name = bowl.get("bowling_name", "") or bowl.get("name", "")
+                if not name:
+                    continue
+                p = get_or_create(name)
+                p["wickets"] += int(bowl.get("wickets", 0) or 0)
+                p["maidens"] += int(bowl.get("maidens", 0) or 0)
+            
+            # Fielding (catches/stumpings)
+            for bat in innings.get("batsmen", []):
+                how_out = bat.get("how_out", "") or ""
+                fielder = bat.get("fielder_name", "") or ""
+                if not fielder:
+                    continue
+                p = get_or_create(fielder)
+                if "caught" in how_out.lower() and "bowled" not in how_out.lower():
+                    p["catches"] += 1
+                elif "stumped" in how_out.lower():
+                    p["stumpings"] += 1
+        
+        if not players:
+            return None, "No player data found in ESPNcricinfo response"
+        
+        new_entries = process_players(list(players.values()), match_name, mom_player)
+        return new_entries, None
+    except Exception as e:
+        return None, str(e)
+
 @app.route("/api/fetch-scorecard", methods=["POST"])
 def fetch_scorecard():
     admin_key = request.headers.get("X-Admin-Key", "")
@@ -594,8 +666,20 @@ def fetch_scorecard():
     match_name = data.get("match_name", "").strip()
     match_id = data.get("match_id", "").strip()
     mom_player = data.get("mom_player", "").strip()
-    if not match_name or not match_id:
-        return jsonify({"error": "Match name and match ID required"}), 400
+    espn_match_id = data.get("espn_match_id", "").strip()
+    if not match_name:
+        return jsonify({"error": "Match name required"}), 400
+    
+    # If ESPN match ID provided, use ESPNcricinfo directly
+    if espn_match_id:
+        new_entries, error = scrape_espncricinfo(espn_match_id, match_name, mom_player)
+        if error:
+            return jsonify({"error": f"ESPNcricinfo error: {error}"}), 500
+        save_stats(new_entries)
+        return jsonify({"success": True, "match": match_name, "players_processed": len(new_entries), "entries": new_entries, "source": "espncricinfo"})
+    
+    if not match_id:
+        return jsonify({"error": "Match ID required"}), 400
     api_key = os.environ.get("CRICKETDATA_API_KEY", "")
     if not api_key:
         return jsonify({"error": "CricketData API key not configured"}), 500
@@ -605,11 +689,12 @@ def fetch_scorecard():
         response.raise_for_status()
         result = response.json()
         if result.get("status") != "success":
-            return jsonify({"error": f"API error: {result.get('reason', result.get('message', 'Unknown error'))}"}), 500
+            # Try ESPNcricinfo fallback if cricapi fails
+            return jsonify({"error": f"API error: {result.get('reason', result.get('message', 'Unknown error'))}. Try using ESPN Match ID instead."}), 500
         scorecard_data = result.get("data", {})
         innings_list = scorecard_data.get("scorecard", [])
         if not innings_list:
-            return jsonify({"error": "No scorecard data available for this match"}), 500
+            return jsonify({"error": "No scorecard data available. Try using ESPN Match ID instead."}), 500
         players = {}
         def get_or_create(name):
             if name not in players:
