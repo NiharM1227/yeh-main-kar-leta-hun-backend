@@ -355,7 +355,7 @@ def get_leaderboard():
         if owner in cvc_history:
             changes = sorted(cvc_history[owner], key=lambda c: c["date"], reverse=True)
             for change in changes:
-                if change["date"] >= match_date:
+                if change["date"] > match_date:
                     change_type = change["type"]
                     to_player = change["to_player"]
                     from_player = change["from_player"]
@@ -471,7 +471,7 @@ def api_teams():
         if owner in cvc_history:
             changes = sorted(cvc_history[owner], key=lambda c: c["date"], reverse=True)
             for change in changes:
-                if change["date"] >= match_date:
+                if change["date"] > match_date:
                     to_player = change["to_player"]
                     from_player = change["from_player"]
                     change_type = change["type"]
@@ -586,6 +586,89 @@ def process_players(players_data, match_name, mom_player):
         new_entries.append({"match": match_name, "player": name, "role": p["role"], "runs": p["runs"], "fours": p["fours"], "sixes": p["sixes"], "wickets": p["wickets"], "catches": p["catches"], "stumpings": p["stumpings"], "maidens": p["maidens"], "dismissal": p["dismissal"], "mom": p["mom"], "hattrick": p["hattrick"], "pts": pts})
     return new_entries
 
+
+def scrape_cricbuzz(cricbuzz_match_id, match_name, mom_player):
+    """Fetch scorecard from Cricbuzz via RapidAPI"""
+    try:
+        rapidapi_key = os.environ.get("RAPIDAPI_KEY", "")
+        if not rapidapi_key:
+            return None, "RapidAPI key not configured"
+        
+        url = f"https://cricbuzz-cricket.p.rapidapi.com/mcenter/v1/{cricbuzz_match_id}/hscard"
+        headers = {
+            "x-rapidapi-host": "cricbuzz-cricket.p.rapidapi.com",
+            "x-rapidapi-key": rapidapi_key
+        }
+        response = req.get(url, headers=headers, timeout=15)
+        response.raise_for_status()
+        data = response.json()
+        
+        if "scorecard" not in data:
+            return None, f"No scorecard in response: {data.get('message', 'Unknown error')}"
+        
+        players = {}
+        
+        def get_or_create(name):
+            if name not in players:
+                players[name] = {"player": name, "role": get_player_role(name), "runs": 0, "fours": 0, "sixes": 0, "wickets": 0, "catches": 0, "stumpings": 0, "maidens": 0, "dismissal": "DNB", "mom": 0, "hattrick": 0}
+            return players[name]
+        
+        for innings in data["scorecard"]:
+            # Batting
+            for bat in innings.get("batsman", []):
+                name = bat.get("name", "").strip()
+                if not name:
+                    continue
+                p = get_or_create(name)
+                runs = int(bat.get("runs", 0) or 0)
+                fours = int(bat.get("fours", 0) or 0)
+                sixes = int(bat.get("sixes", 0) or 0)
+                outdec = bat.get("outdec", "") or ""
+                if runs > p["runs"]:
+                    p["runs"] = runs
+                    p["fours"] = fours
+                    p["sixes"] = sixes
+                if outdec:
+                    if "not out" in outdec.lower() or outdec.strip() == "batting":
+                        p["dismissal"] = "Not Out"
+                    elif outdec.strip():
+                        p["dismissal"] = "Out"
+                # Extract catches/stumpings from dismissal text
+                if "c " in outdec.lower() and " b " in outdec.lower():
+                    # caught - extract catcher name
+                    try:
+                        catcher = outdec.split("c ")[1].split(" b ")[0].strip()
+                        if catcher and catcher != "and":
+                            cp = get_or_create(catcher)
+                            cp["catches"] = cp.get("catches", 0) + 1
+                    except:
+                        pass
+                elif "st " in outdec.lower() and " b " in outdec.lower():
+                    try:
+                        stumper = outdec.split("st ")[1].split(" b ")[0].strip()
+                        if stumper:
+                            sp = get_or_create(stumper)
+                            sp["stumpings"] = sp.get("stumpings", 0) + 1
+                    except:
+                        pass
+            
+            # Bowling
+            for bowl in innings.get("bowler", []):
+                name = bowl.get("name", "").strip()
+                if not name:
+                    continue
+                p = get_or_create(name)
+                p["wickets"] += int(bowl.get("wickets", 0) or 0)
+                p["maidens"] += int(bowl.get("maidens", 0) or 0)
+        
+        if not players:
+            return None, "No player data found"
+        
+        new_entries = process_players(list(players.values()), match_name, mom_player)
+        return new_entries, None
+    except Exception as e:
+        return None, str(e)
+
 def scrape_espncricinfo(espn_match_id, match_name, mom_player):
     """Scrape scorecard from ESPNcricinfo as fallback"""
     try:
@@ -667,10 +750,19 @@ def fetch_scorecard():
     match_id = data.get("match_id", "").strip()
     mom_player = data.get("mom_player", "").strip()
     espn_match_id = data.get("espn_match_id", "").strip()
+    cricbuzz_match_id = data.get("cricbuzz_match_id", "").strip()
     if not match_name:
         return jsonify({"error": "Match name required"}), 400
     
-    # If ESPN match ID provided, use ESPNcricinfo directly
+    # If Cricbuzz match ID provided, use Cricbuzz
+    if cricbuzz_match_id:
+        new_entries, error = scrape_cricbuzz(cricbuzz_match_id, match_name, mom_player)
+        if error:
+            return jsonify({"error": f"Cricbuzz error: {error}"}), 500
+        save_stats(new_entries)
+        return jsonify({"success": True, "match": match_name, "players_processed": len(new_entries), "entries": new_entries, "source": "cricbuzz"})
+    
+    # If ESPN match ID provided, use ESPNcricinfo
     if espn_match_id:
         new_entries, error = scrape_espncricinfo(espn_match_id, match_name, mom_player)
         if error:
@@ -993,3 +1085,4 @@ def generate_banter():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
+    
