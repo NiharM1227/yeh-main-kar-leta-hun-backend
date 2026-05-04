@@ -1002,6 +1002,38 @@ def update_cvc_date():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+@app.route("/api/debug-cvc")
+def debug_cvc():
+    owner = request.args.get("owner", "Harsh Gupta")
+    match = request.args.get("match", "RR vs DC")
+    cvc_changes = get_all_cvc_changes()
+    cvc_history = {}
+    for change in cvc_changes:
+        team = change["team"]
+        if team not in cvc_history:
+            cvc_history[team] = []
+        cvc_history[team].append(change)
+    match_date = get_match_date(match)
+    cvc_state = {}
+    for p in TEAMS[owner]["players"]:
+        if p["cvc"] in ("C", "VC"):
+            cvc_state[p["name"]] = p["cvc"]
+    initial_state = dict(cvc_state)
+    applied = []
+    if owner in cvc_history:
+        changes = sorted(cvc_history[owner], key=lambda c: c["date"])
+        for change in changes:
+            if change["date"] <= match_date:
+                t = change["type"]
+                fp = change["from_player"]
+                tp = change["to_player"]
+                if fp in cvc_state and cvc_state[fp] == t:
+                    del cvc_state[fp]
+                cvc_state[tp] = t
+                applied.append(change)
+    return jsonify({"owner": owner, "match": match, "match_date": match_date, "initial_state": initial_state, "applied_changes": applied, "final_cvc_state": cvc_state})
+
 @app.route("/api/debug-player")
 def debug_player():
     player = request.args.get("player", "").strip()
@@ -1119,4 +1151,3 @@ def generate_banter():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
-    
