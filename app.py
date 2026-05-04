@@ -353,15 +353,15 @@ def get_leaderboard():
             if p["cvc"] in ("C", "VC"):
                 cvc_state[p["name"]] = p["cvc"]
         if owner in cvc_history:
-            changes = sorted(cvc_history[owner], key=lambda c: c["date"], reverse=True)
+            changes = sorted(cvc_history[owner], key=lambda c: c["date"])
             for change in changes:
-                if change["date"] > match_date:
+                if change["date"] <= match_date:
                     change_type = change["type"]
                     to_player = change["to_player"]
                     from_player = change["from_player"]
-                    if to_player in cvc_state and cvc_state[to_player] == change_type:
-                        del cvc_state[to_player]
-                    cvc_state[from_player] = change_type
+                    if from_player in cvc_state and cvc_state[from_player] == change_type:
+                        del cvc_state[from_player]
+                    cvc_state[to_player] = change_type
         return cvc_state
     def get_multiplier(owner, player_name, match_name):
         cvc_state = get_cvc_at_match_time(owner, match_name)
@@ -469,15 +469,15 @@ def api_teams():
             if p["cvc"] in ("C", "VC"):
                 cvc_state[p["name"]] = p["cvc"]
         if owner in cvc_history:
-            changes = sorted(cvc_history[owner], key=lambda c: c["date"], reverse=True)
+            changes = sorted(cvc_history[owner], key=lambda c: c["date"])
             for change in changes:
-                if change["date"] > match_date:
+                if change["date"] <= match_date:
                     to_player = change["to_player"]
                     from_player = change["from_player"]
                     change_type = change["type"]
-                    if to_player in cvc_state and cvc_state[to_player] == change_type:
-                        del cvc_state[to_player]
-                    cvc_state[from_player] = change_type
+                    if from_player in cvc_state and cvc_state[from_player] == change_type:
+                        del cvc_state[from_player]
+                    cvc_state[to_player] = change_type
         return cvc_state
     all_replacements = get_all_replacements()
     replacement_effective = {}
@@ -1119,3 +1119,4 @@ def generate_banter():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
+    
