@@ -1003,6 +1003,27 @@ def update_cvc_date():
         return jsonify({"error": str(e)}), 500
 
 
+
+@app.route("/api/fix-player-name", methods=["POST"])
+def fix_player_name():
+    admin_key = request.headers.get("X-Admin-Key", "")
+    if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    old_name = data.get("old_name", "").strip()
+    new_name = data.get("new_name", "").strip()
+    if not old_name or not new_name:
+        return jsonify({"error": "old_name and new_name required"}), 400
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("UPDATE match_stats SET player=%s WHERE player=%s", (new_name, old_name))
+                updated = cur.rowcount
+            conn.commit()
+        return jsonify({"success": True, "updated": updated})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/api/debug-cvc")
 def debug_cvc():
     owner = request.args.get("owner", "Harsh Gupta")
