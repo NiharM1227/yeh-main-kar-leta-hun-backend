@@ -206,7 +206,7 @@ MATCH_ORDER = {
 MATCH_DATES = {
     "RCB vs SRH": "2026-03-28","MI vs KKR": "2026-03-29","RR vs CSK": "2026-03-30",
     "PBKS vs GT": "2026-03-31","LSG vs DC": "2026-04-01","KKR vs SRH": "2026-04-02",
-    "CSK vs PBKS": "2026-04-03","MI vs DC": "2026-04-04","RR vs GT": "2026-04-04",
+    "CSK vs PBKS": "2026-04-03","MI vs DC": "2026-04-04","RR vs GT": "2026-04-04","GT vs RR": "2026-04-04",
     "SRH vs LSG": "2026-04-05","RCB vs CSK": "2026-04-05","KKR vs PBKS": "2026-04-06",
     "RR vs MI": "2026-04-07","DC vs GT": "2026-04-08","KKR vs LSG": "2026-04-09",
     "RR vs RCB": "2026-04-10","PBKS vs SRH": "2026-04-11","CSK vs DC": "2026-04-11",
