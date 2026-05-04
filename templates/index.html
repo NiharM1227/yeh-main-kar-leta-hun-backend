@@ -493,23 +493,49 @@ function renderTeamDetail(owner) {
           `).join('')}
         </div>` : ''}
     </div>
-    ${players.map(p => {
-      const ptsClass = p.display_pts > 0 ? '' : p.display_pts < 0 ? 'neg' : 'zero';
-      const cvcBadge = p.cvc ? `<span class="cvc-badge ${p.cvc==='C'?'c-badge':'vc-badge'}">${p.cvc}</span>` : '';
-      const multLabel = p.cvc === 'C' ? '×2' : p.cvc === 'VC' ? '×1.5' : '';
-      const ruledOut = p.ruled_out ? `<span style="font-size:10px;color:#ef4444;font-weight:600;margin-left:4px">🚫 Ruled Out</span>` : '';
-      return `<div class="player-card" onclick="openPlayerModal('${p.name}')" style="${p.ruled_out ? 'opacity:0.6' : ''}">
-        <div class="player-role-dot ${roleDot(p.role)}"></div>
-        <div class="player-info">
-          <div class="player-name">${p.name}${ruledOut}</div>
-          <div class="player-meta">${p.ipl||'?'} ${cvcBadge}</div>
-        </div>
-        <div>
-          <div class="player-pts ${ptsClass}">${p.display_pts}</div>
-          <div class="player-pts-label">pts${multLabel}</div>
-        </div>
-      </div>`;
-    }).join('')}`;
+    ${(() => {
+      // Build replacement map: in_player -> out_player
+      const replacedBy = {};
+      ownerReplacements.forEach(r => { replacedBy[r.in_player] = r.out_player; });
+      const ruledOutNames = new Set(ownerReplacements.map(r => r.out_player));
+      
+      return players.map(p => {
+        if (ruledOutNames.has(p.name)) return ''; // skip ruled out, shown under replacement
+        const ptsClass = p.display_pts > 0 ? '' : p.display_pts < 0 ? 'neg' : 'zero';
+        const cvcBadge = p.cvc ? `<span class="cvc-badge ${p.cvc==='C'?'c-badge':'vc-badge'}">${p.cvc}</span>` : '';
+        const multLabel = p.cvc === 'C' ? '×2' : p.cvc === 'VC' ? '×1.5' : '';
+        const ruledOut = p.ruled_out ? `<span style="font-size:10px;color:#ef4444;font-weight:600;margin-left:4px">🚫 Ruled Out</span>` : '';
+        
+        // Check if this player replaced someone
+        const replacedPlayer = replacedBy[p.name] ? players.find(rp => rp.name === replacedBy[p.name]) : null;
+        const replacedBlock = replacedPlayer ? `
+          <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;opacity:0.5">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="player-role-dot ${roleDot(replacedPlayer.role)}" style="width:6px;height:6px"></div>
+              <div style="flex:1">
+                <div style="font-size:11px;color:var(--muted)">${replacedPlayer.name} <span style="color:#ef4444;font-size:9px">🚫 Ruled Out</span></div>
+                <div style="font-size:9px;color:var(--muted);font-family:'DM Mono'">prior pts</div>
+              </div>
+              <div style="font-size:13px;font-family:'Bebas Neue';color:var(--muted)">${replacedPlayer.display_pts}</div>
+            </div>
+          </div>` : '';
+        
+        return `<div class="player-card" onclick="openPlayerModal('${p.name}')" style="${p.ruled_out ? 'opacity:0.6' : ''}">
+          <div style="display:flex;align-items:center;gap:12px;width:100%">
+            <div class="player-role-dot ${roleDot(p.role)}"></div>
+            <div class="player-info">
+              <div class="player-name">${p.name}${ruledOut}</div>
+              <div class="player-meta">${p.ipl||'?'} ${cvcBadge}</div>
+            </div>
+            <div>
+              <div class="player-pts ${ptsClass}">${p.display_pts}</div>
+              <div class="player-pts-label">pts${multLabel}</div>
+            </div>
+          </div>
+          ${replacedBlock}
+        </div>`;
+      }).join('');
+    })()}`;
 }
 
 function renderMatchPills() {
