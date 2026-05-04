@@ -39,6 +39,7 @@
   <input type="text" id="api-match-name" placeholder="Match name e.g. CSK vs MI">
   <input type="text" id="api-match-id" placeholder="CricketData match ID">
   <input type="text" id="api-mom-player" placeholder="Man of the Match (optional)">
+  <input type="text" id="api-cricbuzz-id" placeholder="Cricbuzz Match ID (e.g. 151954)">
   <input type="text" id="api-espn-id" placeholder="ESPN Match ID (optional fallback)">
   <button class="btn" id="api-fetch-btn" onclick="fetchFromAPI()" style="margin-bottom:8px">Fetch Scorecard from API</button>
   <div class="result" id="api-result" style="margin-top:12px;display:none;"></div>
@@ -69,7 +70,7 @@ async function fetchFromAPI() {
     const res = await fetch('/api/fetch-scorecard', {
       method: 'POST',
       headers: { 'X-Admin-Key': key, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ match_name: matchName, match_id: matchId, mom_player: momPlayer, espn_match_id: espnId })
+      body: JSON.stringify({ match_name: matchName, match_id: matchId, mom_player: momPlayer, espn_match_id: espnId, cricbuzz_match_id: cricbuzzId })
     });
     const data = await res.json();
     btn.disabled = false;
@@ -551,5 +552,88 @@ async function deleteCvc(id) {
 loadCvcLog();
 </script>
 
+
+<div style="border-top:1px solid #2a2a3d;margin:28px 0 24px;"></div>
+<h2 style="color:#facc15;font-size:18px;margin-bottom:4px;">📅 Fix C/VC Change Date</h2>
+<p>Update the date of a recorded C/VC change (use this if the wrong date was entered).</p>
+<label>Admin Key</label>
+<input type="password" id="cvcdate-key" placeholder="Enter admin key">
+<label>C/VC Change ID (from the log above)</label>
+<input type="number" id="cvcdate-id" placeholder="e.g. 3">
+<label>Correct Date</label>
+<input type="date" id="cvcdate-date">
+<button class="btn" onclick="fixCvcDate()" style="background:#facc15;color:#000;">Update Date</button>
+<div class="result" id="cvcdate-result" style="margin-top:16px;display:none;"></div>
+<script>
+async function fixCvcDate() {
+  const key = document.getElementById("cvcdate-key").value.trim();
+  const id = document.getElementById("cvcdate-id").value.trim();
+  const date = document.getElementById("cvcdate-date").value;
+  const resultEl = document.getElementById("cvcdate-result");
+  if (!key || !id || !date) { alert("All fields required"); return; }
+  try {
+    const res = await fetch("/api/update-cvc-date", {
+      method: "POST",
+      headers: { "X-Admin-Key": key, "Content-Type": "application/json" },
+      body: JSON.stringify({ id: parseInt(id), date })
+    });
+    const data = await res.json();
+    resultEl.style.display = "block";
+    if (data.success) {
+      resultEl.className = "result success";
+      resultEl.innerHTML = "<h3>✅ Date updated</h3>";
+      loadCvcLog();
+    } else {
+      resultEl.className = "result error";
+      resultEl.innerHTML = "<h3>❌ Error</h3><p>" + data.error + "</p>";
+    }
+  } catch(e) {
+    resultEl.style.display = "block";
+    resultEl.className = "result error";
+    resultEl.innerHTML = "<h3>❌ Connection error</h3><p>" + e.message + "</p>";
+  }
+}
+</script>
+
+<div style="border-top:1px solid #2a2a3d;margin:28px 0 24px;"></div>
+<h2 style="color:#60a5fa;font-size:18px;margin-bottom:4px;">🔧 Fix Player Name in DB</h2>
+<p>Rename a player across all match records (fixes spelling mismatches).</p>
+<label>Admin Key</label>
+<input type="password" id="fixname-key" placeholder="Enter admin key">
+<label>Wrong Name (in DB)</label>
+<input type="text" id="fixname-old" placeholder="e.g. Varun Chakaravarthy">
+<label>Correct Name</label>
+<input type="text" id="fixname-new" placeholder="e.g. Varun Chakravarthy">
+<button class="btn" onclick="fixPlayerName()" style="background:#60a5fa;color:#000;">Fix Name</button>
+<div class="result" id="fixname-result" style="margin-top:16px;display:none;"></div>
+<script>
+async function fixPlayerName() {
+  const key = document.getElementById("fixname-key").value.trim();
+  const oldName = document.getElementById("fixname-old").value.trim();
+  const newName = document.getElementById("fixname-new").value.trim();
+  const resultEl = document.getElementById("fixname-result");
+  if (!key || !oldName || !newName) { alert("All fields required"); return; }
+  try {
+    const res = await fetch("/api/fix-player-name", {
+      method: "POST",
+      headers: { "X-Admin-Key": key, "Content-Type": "application/json" },
+      body: JSON.stringify({ old_name: oldName, new_name: newName })
+    });
+    const data = await res.json();
+    resultEl.style.display = "block";
+    if (data.success) {
+      resultEl.className = "result success";
+      resultEl.innerHTML = "<h3>✅ Done — " + data.updated + " rows updated</h3>";
+    } else {
+      resultEl.className = "result error";
+      resultEl.innerHTML = "<h3>❌ Error</h3><p>" + data.error + "</p>";
+    }
+  } catch(e) {
+    resultEl.style.display = "block";
+    resultEl.className = "result error";
+    resultEl.innerHTML = "<h3>❌ Connection error</h3><p>" + e.message + "</p>";
+  }
+}
+</script>
 </body>
 </html>
