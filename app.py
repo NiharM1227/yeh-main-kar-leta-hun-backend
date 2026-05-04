@@ -981,6 +981,17 @@ def rename_match():
 @app.route("/api/cvc-changes")
 def api_cvc_changes():
     return jsonify({"changes": get_all_cvc_changes()})
+
+@app.route("/api/debug-player")
+def debug_player():
+    player = request.args.get("player", "").strip()
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT match, player, pts FROM match_stats WHERE player ILIKE %s ORDER BY id", (f"%{player}%",))
+            rows = [dict(r) for r in cur.fetchall()]
+    cvc = get_all_cvc_changes()
+    return jsonify({"stats": rows, "cvc_changes": cvc})
+
 @app.route("/api/matches")
 def api_matches():
     all_stats = get_all_stats()
@@ -1085,3 +1096,4 @@ def generate_banter():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
+    
