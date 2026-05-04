@@ -982,17 +982,6 @@ def rename_match():
 def api_cvc_changes():
     return jsonify({"changes": get_all_cvc_changes()})
 
-@app.route("/api/debug-player")
-def debug_player():
-    player = request.args.get("player", "").strip()
-    with get_db() as conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT match, player, pts FROM match_stats WHERE player ILIKE %s ORDER BY id", (f"%{player}%",))
-            rows = [dict(r) for r in cur.fetchall()]
-    cvc = get_all_cvc_changes()
-    return jsonify({"stats": rows, "cvc_changes": cvc})
-
-
 @app.route("/api/update-cvc-date", methods=["POST"])
 def update_cvc_date():
     admin_key = request.headers.get("X-Admin-Key", "")
