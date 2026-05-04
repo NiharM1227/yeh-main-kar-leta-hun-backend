@@ -992,6 +992,40 @@ def debug_player():
     cvc = get_all_cvc_changes()
     return jsonify({"stats": rows, "cvc_changes": cvc})
 
+
+@app.route("/api/update-cvc-date", methods=["POST"])
+def update_cvc_date():
+    admin_key = request.headers.get("X-Admin-Key", "")
+    if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    cvc_id = data.get("id")
+    new_date = data.get("date", "").strip()
+    if not cvc_id or not new_date:
+        return jsonify({"error": "id and date required"}), 400
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("UPDATE cvc_changes SET date=%s WHERE id=%s", (new_date, cvc_id))
+                updated = cur.rowcount
+            conn.commit()
+        return jsonify({"success": True, "updated": updated})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/debug-player")
+def debug_player():
+    player = request.args.get("player", "").strip()
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT match, player, pts FROM match_stats WHERE player ILIKE %s ORDER BY id", (f"%{player}%",))
+                rows = [dict(r) for r in cur.fetchall()]
+        cvc = get_all_cvc_changes()
+        return jsonify({"stats": rows, "cvc_changes": cvc})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/api/matches")
 def api_matches():
     all_stats = get_all_stats()
@@ -1096,4 +1130,3 @@ def generate_banter():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
-    
