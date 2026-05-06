@@ -1,1 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yeh Main Kar Leta Hu — Admin</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a0f; color: #f0f0f8; font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 20px; }
+  h1 { color: #f97316; font-size: 24px; margin-bottom: 4px; }
+  p { color: #6b6b8a; font-size: 13px; margin-bottom: 24px; }
+  label { display: block; font-size: 13px; color: #6b6b8a; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; }
+  input, select { width: 100%; background: #12121a; border: 1px solid #2a2a3d; color: #f0f0f8; padding: 12px 14px; border-radius: 10px; font-size: 14px; margin-bottom: 16px; outline: none; }
+  input:focus, select:focus { border-color: #f97316; }
+  .btn { width: 100%; background: #f97316; color: #000; border: none; padding: 14px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .result { background: #12121a; border: 1px solid #2a2a3d; border-radius: 10px; padding: 16px; margin-top: 20px; display: none; }
+  .result.success { border-color: #22c55e; }
+  .result.error { border-color: #ef4444; }
+  .result h3 { margin-bottom: 10px; }
+  .player-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #1a1a26; font-size: 13px; }
+  .player-row:last-child { border-bottom: none; }
+  .pts-pos { color: #22c55e; }
+  .pts-neg { color: #ef4444; }
+  .upload-area { border: 2px dashed #2a2a3d; border-radius: 10px; padding: 30px; text-align: center; margin-bottom: 16px; cursor: pointer; transition: border-color 0.2s; }
+  .upload-area:hover, .upload-area.dragover { border-color: #f97316; }
+  .upload-area p { color: #6b6b8a; margin: 0; font-size: 13px; }
+  .preview { max-width: 100%; border-radius: 8px; margin-top: 10px; display: none; }
+  .spinner { display: none; text-align: center; padding: 20px; color: #6b6b8a; }
+</style>
+</head>
+<body>
+<h1>🏏 Yeh Main Kar Leta Hu</h1>
+<p>Admin panel — manage match data and points</p>
 
+<div style="background:#1a1a26;border-radius:12px;padding:16px;margin-bottom:16px;border:1px solid #f97316">
+  <label style="color:#f97316;margin-bottom:8px">⚡ Fetch from CricketData API</label>
+  <input type="password" id="api-admin-key" placeholder="Admin key">
+  <input type="text" id="api-match-name" placeholder="Match name e.g. CSK vs MI">
+  <input type="text" id="api-match-id" placeholder="CricketData match ID">
+  <input type="text" id="api-mom-player" placeholder="Man of the Match (optional)">
+  <input type="text" id="api-cricbuzz-id" placeholder="Cricbuzz Match ID (use if CricketData fails)">
+  <button class="btn" id="api-fetch-btn" onclick="fetchFromAPI()" style="margin-bottom:8px">Fetch Scorecard from API</button>
+  <div class="result" id="api-result" style="margin-top:12px;display:none;"></div>
+</div>
+
+<script>
+let selectedFiles = { 1: null, 2: null };
+
+async function fetchFromAPI() {
+  const key = document.getElementById('api-admin-key').value.trim();
+  const matchName = document.getElementById('api-match-name').value.trim();
+  const matchId = document.getElementById('api-match-id').value.trim();
+  const momPlayer = document.getElementById('api-mom-player').value.trim();
+  const cricbuzzId = document.getElementById('api-cricbuzz-id').value.trim();
+  const resultEl = document.getElementById('api-result');
+  const btn = document.getElementById('api-fetch-btn');
+
+  if (!key) { alert('Enter admin key'); return; }
+  if (!matchName) { alert('Enter match name'); return; }
+  if (!matchId && !cricbuzzId) { alert('Enter either a CricketData match ID or Cricbuzz Match ID'); return; }
+
+  btn.disabled = true;
+  resultEl.style.display = 'block';
+  resultEl.className = 'result';
+  resultEl.innerHTML = '⏳ Fetching scorecard from CricketData...';
+
+  try {
+    const res = await fetch('/api/fetch-scorecard', {
+      method: 'POST',
+      headers: { 'X-Admin-Key': key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ match_name: matchName, match_id: matchId, mom_player: momPlayer, cricbuzz_match_id: cricbuzzId })
+    });
+    const data = await res.json();
+    btn.disabled = false;
+    if (data.success) {
+      resultEl.className = 'result success';
+      resultEl.innerHTML = `<h3>✅ ${data.match} — ${data.players_processed} players processed</h3>
+        ${data.entries.map(e => `
+          <div class="player-row">
+            <span>${e.player} ${e.mom ? '⭐' : ''} <small style="color:#6b6b8a">${e.runs}r ${e.wickets}w</small></span>
+            <span class="${e.pts >= 0 ? 'pts-pos' : 'pts-neg'}">${e.pts > 0 ? '+' : ''}${e.pts} pts</span>
+          </div>`).join('')}`;
+    } else {
+      resultEl.className = 'result error';
+      resultEl.innerHTML = `<h3>❌ Error</h3><p>${data.error}</p>`;
+    }
+  } catch(err) {
+    btn.disabled = false;
+    resultEl.className = 'result error';
+    resultEl.innerHTML = `<h3>❌ Connection error</h3><p>${err.message}</p>`;
+  }
+}
+
+['1','2'].forEach(n => {
+  const area = document.getElementById(`upload-area-${n}`);
+  area.addEventListener('dragover', e => { e.preventDefault(); area.classList.add('dragover'); });
+  area.addEventListener('dragleave', () => area.classList.remove('dragover'));
+  area.addEventListener('drop', e => { e.preventDefault(); area.classList.remove('dragover'); handleFile(e.dataTransfer.files[0], n); });
+});
+
+function handleFile(file, innings) {
+  if (!file) return;
+  selectedFiles[innings] = file;
+  const preview = document.getElementById(`preview-${innings}`);
+  preview.src = URL.createObjectURL(file);
+  preview.style.display = 'block';
+  document.querySelector(`#upload-area-${innings} p`).textContent = file.name;
+}
+
+async function uploadInnings(file, matchName) {
+  const formData = new FormData();
+  formData.append('image', file);
+  formData.append('match_name', matchName);
+  const res = await fetch('/api/upload-scorecard', {
+    method: 'POST',
+    headers: { 'X-Admin-Key': document.getElementById('admin-key').value.trim() },
+    body: formData
+  });
+  return await res.json();
+}
+
+async function uploadScorecard() {
+  const key = document.getElementById('admin-key').value.trim();
+  const matchName = document.getElementById('match-name').value.trim();
+  const resultEl = document.getElementById('result');
+  const spinner = document.getElementById('spinner');
+  const btn = document.getElementById('upload-btn');
+
+  if (!key) { alert('Enter admin key'); return; }
+  if (!matchName) { alert('Enter match name'); return; }
+  if (!selectedFiles[1] && !selectedFiles[2]) { alert('Select at least one scorecard screenshot'); return; }
+
+  btn.disabled = true;
+  spinner.style.display = 'block';
+  resultEl.style.display = 'none';
+
+  try {
+    const filesToUpload = [selectedFiles[1], selectedFiles[2]].filter(Boolean);
+    let allEntries = [];
+    let errors = [];
+
+    for (let i = 0; i < filesToUpload.length; i++) {
+      spinner.innerHTML = `⏳ Processing innings ${i + 1} of ${filesToUpload.length}... (~15 seconds)`;
+      const data = await uploadInnings(filesToUpload[i], matchName);
+      if (data.success) {
+        allEntries = allEntries.concat(data.entries);
+      } else {
+        errors.push(data.error);
+      }
+    }
+
+    spinner.style.display = 'none';
+    btn.disabled = false;
+    resultEl.style.display = 'block';
+
+    if (errors.length) {
+      resultEl.className = 'result error';
+      resultEl.innerHTML = `<h3>❌ Error</h3><p>${errors.join('<br>')}</p>`;
+    } else {
+      resultEl.className = 'result success';
+      resultEl.innerHTML = `<h3>✅ ${matchName} — ${allEntries.length} players processed</h3>
+        ${allEntries.map(e => `
+          <div class="player-row">
+            <span>${e.player} ${e.mom ? '⭐' : ''} <small style="color:#6b6b8a">${e.runs}r ${e.wickets}w</small></span>
+            <span class="${e.pts >= 0 ? 'pts-pos' : 'pts-neg'}">${e.pts > 0 ? '+' : ''}${e.pts} pts</span>
+          </div>`).join('')}`;
+    }
+  } catch (err) {
+    spinner.style.display = 'none';
+    btn.disabled = false;
+    resultEl.style.display = 'block';
+    resultEl.className = 'result error';
+    resultEl.innerHTML = `<h3>❌ Connection error</h3><p>${err.message}</p>`;
+  }
+}
+</script>
+
+<div style="border-top:1px solid #2a2a3d;margin:28px 0 24px;"></div>
+<h2 style="color:#60a5fa;font-size:18px;margin-bottom:4px;">🔧 Adjust Player Points</h2>
+<p>Fix incorrect points for any player in a specific match.</p>
+
+<label>Admin Key</label>
+<input type="password" id="adj-admin-key" placeholder="Enter admin key">
+
+<label>Player Name</label>
+<input type="text" id="adj-player" placeholder="e.g. Harshal Patel">
+
+<label>Match Name</label>
+<input type="text" id="adj-match" placeholder="e.g. SRH vs RCB">
+
+<label>Points Adjustment</label>
+<input type="number" id="adj-points" placeholder="e.g. -2 to deduct, 6 to add">
+
+<button class="btn" id="adj-btn" onclick="adjustPoints()" style="background:#60a5fa;color:#000;">Apply Adjustment</button>
+<div class="result" id="adj-result" style="margin-top:16px;display:none;"></div>
+
+<script>
+async function adjustPoints() {
+  const key = document.getElementById('adj-admin-key').value.trim();
+  const player = document.getElementById('adj-player').value.trim();
+  const match = document.getElementById('adj-match').value.trim();
+  const adjustment = parseFloat(document.getElementById('adj-points').value);
+  const resultEl = document.getElementById('adj-result');
+  const btn = document.getElementById('adj-btn');
+
+  if (!key) { alert('Enter admin key'); return; }
+  if (!player || !match) { alert('Enter player and match name'); return; }
+  if (isNaN(adjustment)) { alert('Enter a valid number'); return; }
+
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/adjust-points', {
+      method: 'POST',
+      headers: { 'X-Admin-Key': key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ player, match, adjustment })
+    });
+    const data = await res.json();
+    btn.disabled = false;
+    resultEl.style.display = 'block';
+    if (data.success) {
+      resultEl.className = 'result success';
+      resultEl.innerHTML = `<h3>✅ Done</h3>
+        <div class="player-row"><span>${data.player}</span><span>${data.old_pts} → <strong>${data.new_pts} pts</strong></span></div>
+        <div class="player-row"><span>Match</span><span>${data.match}</span></div>`;
+    } else {
+      resultEl.className = 'result error';
+      resultEl.innerHTML = `<h3>❌ Error</h3><p>${data.error}</p>`;
+    }
+  } catch(err) {
+    btn.disabled = false;
+    resultEl.style.display = 'block';
+    resultEl.className = 'result error';
+    resultEl.innerHTML = `<h3>❌ Connection error</h3><p>${err.message}</p>`;
+  }
+}
+</script>
+
+<div style="border-top:1px solid #2a2a3d;margin:28px 0 24px;"></div>
+<h2 style="color:#a78bfa;font-size:18px;margin-bottom:4px;">✏️ Rename Match</h2>
+<p>Fix a match name in the database to match the correct ordering.</p>
+
+<label>Admin Key</label>
+<input type="password" id="ren-admin-key" placeholder="Enter admin key">
+
+<label>Current Match Name (in DB)</label>
+<input type="text" id="ren-old-name" placeholder="e.g. GT vs DC">
+
+<label>Correct Match Name</label>
+<input type="text" id="ren-new-name" placeholder="e.g. DC vs GT">
+
+<button class="btn" id="ren-btn" onclick="renameMatch()" style="background:#a78bfa;color:#000;">Rename Match</button>
+<div class="result" id="ren-result" style="margin-top:16px;display:none;"></div>
+
+<script>
+async function renameMatch() {
+  const key = document.getElementById('ren-admin-key').value.trim();
+  const oldName = document.getElementById('ren-old-name').value.trim();
+  const newName = document.getElementById('ren-new-name').value.trim();
+  const resultEl = document.getElementById('ren-result');
+  const btn = document.getElementById('ren-btn');
+
+  if (!key) { alert('Enter admin key'); return; }
+  if (!oldName || !newName) { alert('Enter both match names'); return; }
+
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/rename-match', {
+      method: 'POST',
+      headers: { 'X-Admin-Key': key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ old_name: oldName, new_name: newName })
+    });
+    const data = await res.json();
+    btn.disabled = false;
+    resultEl.style.display = 'block';
+    if (data.success) {
+      resultEl.className = 'result success';
+      resultEl.innerHTML = `<h3>✅ Done</h3>
+        <div class="player-row"><span>${data.old_name}</span><span>→ ${data.new_name}</span></div>
+        <div class="player-row"><span>Rows updated</span><span>${data.rows_updated}</span></div>`;
+    } else {
+      resultEl.className = 'result error';
+      resultEl.innerHTML = `<h3>❌ Error</h3><p>${data.error}</p>`;
+    }
+  } catch(err) {
+    btn.disabled = false;
+    resultEl.style.display = 'block';
+    resultEl.className = 'result error';
+    resultEl.innerHTML = `<h3>❌ Connection error</h3><p>${err.message}</p>`;
+  }
+}
+</script>
+
+<div style="border-top:1px solid #2a2a3d;margin:28px 0 24px;"></div>
+<h2 style="color:#ef4444;font-size:18px;margin-bottom:4px;">🗑️ Delete Match Data</h2>
+<p>Delete all player data for a match so you can re-fetch it cleanly.</p>
+
+<label>Admin Key</label>
+<input type="password" id="del-admin-key" placeholder="Enter admin key">
+
+<label>Match Name</label>
+<input type="text" id="del-match-name" placeholder="e.g. RR vs CSK">
+
+<button class="btn" id="del-btn" onclick="deleteMatch()" style="background:#ef4444;">Delete Match Data</button>
+<div class="result" id="del-result" style="margin-top:16px;display:none;"></div>
+
+<script>
+async function deleteMatch() {
+  const key = document.getElementById('del-admin-key').value.trim();
+  const match = document.getElementById('del-match-name').value.trim();
+  const resultEl = document.getElementById('del-result');
+  const btn = document.getElementById('del-btn');
+
+  if (!key) { alert('Enter admin key'); return; }
+  if (!match) { alert('Enter match name'); return; }
+  if (!confirm(`Delete all data for "${match}"? This cannot be undone.`)) return;
+
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/delete-match', {
+      method: 'POST',
+      headers: { 'X-Admin-Key': key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ match_name: match })
+    });
+    const data = await res.json();
+    btn.disabled = false;
+    resultEl.style.display = 'block';
+    if (data.success) {
+      resultEl.className = 'result success';
+      resultEl.innerHTML = `<h3>✅ Done</h3><div class="player-row"><span>${data.match}</span><span>${data.rows_deleted} rows deleted</span></div>`;
+    } else {
+      resultEl.className = 'result error';
+      resultEl.innerHTML = `<h3>❌ Error</h3><p>${data.error}</p>`;
+    }
+  } catch(err) {
+    btn.disabled = false;
+    resultEl.style.display = 'block';
+    resultEl.className = 'result error';
+    resultEl.innerHTML = `<h3>❌ Connection error</h3><p>${err.message}</p>`;
+  }
+}
+</script>
+
+<div style="border-top:1px solid #2a2a3d;margin:28px 0 24px;"></div>
+<h2 style="color:#34d399;font-size:18px;margin-bottom:4px;">🔄 Player Replacement</h2>
+<p>Record a player ruled out and their replacement.</p>
+
+<label>Admin Key</label>
+<input type="password" id="rep-admin-key" placeholder="Enter admin key">
+
+<label>Team Owner</label>
+<select id="rep-team">
+  <option value="">Select team owner</option>
+  <option>Vijay</option>
+  <option>Yash Shah</option>
+  <option>Samay Maru</option>
+  <option>Harsh Gupta</option>
+  <option>Vikram Jumani</option>
+  <option>Rishub Bubna</option>
+  <option>Nihar Mehta</option>
+  <option>Qais / Vaishali</option>
+</select>
+
+<label>Player Ruled Out</label>
+<input type="text" id="rep-out" placeholder="e.g. Khaleel Ahmed">
+
+<label>Replacement Player</label>
+<input type="text" id="rep-in" placeholder="e.g. Cooper Connolly">
+
+<label>Date</label>
+<input type="text" id="rep-date" placeholder="e.g. 2026-04-16">
+
+<label>Reason</label>
+<input type="text" id="rep-reason" placeholder="e.g. Ruled out — injury" value="Ruled out — injury">
+
+<button class="btn" onclick="addReplacement()" style="background:#34d399;color:#000;">Record Replacement</button>
+<div class="result" id="rep-result" style="margin-top:16px;display:none;"></div>
+
+<script>
+async function addReplacement() {
+  const key = document.getElementById('rep-admin-key').value.trim();
+  const team = document.getElementById('rep-team').value;
+  const out_player = document.getElementById('rep-out').value.trim();
+  const in_player = document.getElementById('rep-in').value.trim();
+  const date = document.getElementById('rep-date').value.trim();
+  const reason = document.getElementById('rep-reason').value.trim();
+  const resultEl = document.getElementById('rep-result');
+  if (!key) { alert('Enter admin key'); return; }
+  if (!team || !out_player || !in_player || !date) { alert('All fields required'); return; }
+  try {
+    const res = await fetch('/api/add-replacement', {
+      method: 'POST',
+      headers: { 'X-Admin-Key': key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ team, out_player, in_player, date, reason })
+    });
+    const data = await res.json();
+    resultEl.style.display = 'block';
+    if (data.success) {
+      resultEl.className = 'result success';
+      resultEl.innerHTML = `<h3>✅ Done</h3><div class="player-row"><span>${out_player} → ${in_player}</span><span>${team}</span></div>`;
+    } else {
+      resultEl.className = 'result error';
+      resultEl.innerHTML = `<h3>❌ Error</h3><p>${data.error}</p>`;
+    }
+  } catch(e) {
+    resultEl.style.display = 'block';
+    resultEl.className = 'result error';
+    resultEl.innerHTML = `<h3>❌ Connection error</h3><p>${e.message}</p>`;
+  }
+}
+</script>
+
+<div style="border-top:1px solid #2a2a3d;margin:28px 0 24px;"></div>
+<h2 style="color:#ef4444;font-size:18px;margin-bottom:4px;">⚠️ C/VC Change Penalty</h2>
+<p>Record a captain or vice-captain change. Applies a points deduction to that team.</p>
+
+<label>Admin Key</label>
+<input type="password" id="cvc-admin-key" placeholder="Enter admin key">
+
+<label>Team Owner</label>
+<select id="cvc-team">
+  <option value="">Select team owner</option>
+  <option>Vijay</option>
+  <option>Yash Shah</option>
+  <option>Samay Maru</option>
+  <option>Harsh Gupta</option>
+  <option>Vikram Jumani</option>
+  <option>Rishub Bubna</option>
+  <option>Nihar Mehta</option>
+  <option>Qais / Vaishali</option>
+</select>
+
+<label>Change Type</label>
+<select id="cvc-type">
+  <option value="C">Captain change (−150 pts)</option>
+  <option value="VC">Vice Captain change (−75 pts)</option>
+</select>
+
+<label>From Player</label>
+<input type="text" id="cvc-from" placeholder="e.g. Yashasvi Jaiswal">
+
+<label>To Player</label>
+<input type="text" id="cvc-to" placeholder="e.g. Nicholas Pooran">
+
+<label>Date of Change</label>
+<input type="date" id="cvc-date">
+
+<button class="btn" id="cvc-btn" onclick="submitCvcChange()" style="background:#ef4444;">Apply Penalty</button>
+<div class="result" id="cvc-result" style="margin-top:16px;display:none;"></div>
+
+<script>
+async function submitCvcChange() {
+  const key = document.getElementById('cvc-admin-key').value.trim();
+  const team = document.getElementById('cvc-team').value;
+  const type = document.getElementById('cvc-type').value;
+  const from = document.getElementById('cvc-from').value.trim();
+  const to = document.getElementById('cvc-to').value.trim();
+  const date = document.getElementById('cvc-date').value;
+  const resultEl = document.getElementById('cvc-result');
+  const btn = document.getElementById('cvc-btn');
+
+  if (!key) { alert('Enter admin key'); return; }
+  if (!team) { alert('Select a team owner'); return; }
+  if (!from || !to) { alert('Enter both From and To players'); return; }
+  if (!date) { alert('Select a date'); return; }
+
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/cvc-change', {
+      method: 'POST',
+      headers: { 'X-Admin-Key': key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ team, type, from, to, date })
+    });
+    const data = await res.json();
+
+    btn.disabled = false;
+    resultEl.style.display = 'block';
+
+    if (data.success) {
+      resultEl.className = 'result success';
+      const penalty = type === 'C' ? -150 : -75;
+      resultEl.innerHTML = `<h3>✅ Penalty Applied</h3>
+        <div class="player-row"><span>${team}</span><span class="pts-neg">${penalty} pts</span></div>
+        <div class="player-row"><span>Type</span><span>${type === 'C' ? 'Captain' : 'Vice Captain'} change</span></div>
+        <div class="player-row"><span>From</span><span>${from}</span></div>
+        <div class="player-row"><span>To</span><span>${to}</span></div>
+        <div class="player-row"><span>Date</span><span>${date}</span></div>`;
+    } else {
+      resultEl.className = 'result error';
+      resultEl.innerHTML = `<h3>❌ Error</h3><p>${data.error}</p>`;
+    }
+  } catch (err) {
+    btn.disabled = false;
+    resultEl.style.display = 'block';
+    resultEl.className = 'result error';
+    resultEl.innerHTML = `<h3>❌ Connection error</h3><p>${err.message}</p>`;
+  }
+}
+</script>
+
+<div style="border-top:1px solid #2a2a3d;margin:28px 0 24px;"></div>
+<h2 style="color:#6b6b8a;font-size:18px;margin-bottom:4px;">📋 C/VC Change Log</h2>
+<p>View and delete recorded C/VC changes.</p>
+<label>Admin Key (for deletes)</label>
+<input type="password" id="log-admin-key" placeholder="Enter admin key">
+<button class="btn" onclick="loadCvcLog()" style="background:#2a2a3d;color:#f0f0f8;margin-bottom:16px;">Refresh Log</button>
+<div id="cvc-log" style="margin-top:8px;"></div>
+
+<script>
+async function loadCvcLog() {
+  const logEl = document.getElementById('cvc-log');
+  try {
+    const res = await fetch('/api/cvc-changes');
+    const data = await res.json();
+    if (!data.changes.length) {
+      logEl.innerHTML = '<p style="color:#6b6b8a;font-size:13px;">No C/VC changes recorded.</p>';
+      return;
+    }
+    logEl.innerHTML = data.changes.map(c => `
+      <div class="player-row" style="padding:10px 0;align-items:center;">
+        <span style="flex:1;font-size:13px;">
+          <strong>${c.team}</strong> — ${c.type === 'C' ? 'Captain' : 'VC'} change<br>
+          <span style="color:#6b6b8a;font-size:11px;">${c.from_player} → ${c.to_player} · ${c.date} · ${c.penalty} pts</span>
+        </span>
+        <button onclick="deleteCvc(${c.id})" style="background:#ef4444;color:#fff;border:none;padding:6px 12px;border-radius:8px;font-size:12px;cursor:pointer;">Delete</button>
+      </div>`).join('');
+  } catch(e) {
+    logEl.innerHTML = '<p style="color:#ef4444;font-size:13px;">Error loading log.</p>';
+  }
+}
+
+async function deleteCvc(id) {
+  const key = document.getElementById('log-admin-key').value.trim();
+  if (!key) { alert('Enter admin key first'); return; }
+  if (!confirm('Delete this C/VC change entry?')) return;
+  try {
+    const res = await fetch('/api/delete-cvc', {
+      method: 'POST',
+      headers: { 'X-Admin-Key': key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    });
+    const data = await res.json();
+    if (data.success) { loadCvcLog(); }
+    else { alert('Error: ' + data.error); }
+  } catch(e) {
+    alert('Connection error');
+  }
+}
+
+loadCvcLog();
+</script>
+
+
+<div style="border-top:1px solid #2a2a3d;margin:28px 0 24px;"></div>
+<h2 style="color:#60a5fa;font-size:18px;margin-bottom:4px;">🔧 Fix Player Name in DB</h2>
+<p>Rename a player across all match records (fixes spelling mismatches).</p>
+<label>Admin Key</label>
+<input type="password" id="fixname-key" placeholder="Enter admin key">
+<label>Wrong Name (as stored in DB)</label>
+<input type="text" id="fixname-old" placeholder="e.g. Varun Chakaravarthy">
+<label>Correct Name</label>
+<input type="text" id="fixname-new" placeholder="e.g. Varun Chakravarthy">
+<button class="btn" onclick="fixPlayerName()" style="background:#60a5fa;color:#000;">Fix Name</button>
+<div class="result" id="fixname-result" style="margin-top:16px;display:none;"></div>
+<script>
+async function fixPlayerName() {
+  const key = document.getElementById('fixname-key').value.trim();
+  const oldName = document.getElementById('fixname-old').value.trim();
+  const newName = document.getElementById('fixname-new').value.trim();
+  const resultEl = document.getElementById('fixname-result');
+  if (!key || !oldName || !newName) { alert('All fields required'); return; }
+  try {
+    const res = await fetch('/api/fix-player-name', {
+      method: 'POST',
+      headers: { 'X-Admin-Key': key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ old_name: oldName, new_name: newName })
+    });
+    const data = await res.json();
+    resultEl.style.display = 'block';
+    if (data.success) {
+      resultEl.className = 'result success';
+      resultEl.innerHTML = '<h3>✅ Done — ' + data.updated + ' rows updated</h3>';
+    } else {
+      resultEl.className = 'result error';
+      resultEl.innerHTML = '<h3>❌ Error</h3><p>' + data.error + '</p>';
+    }
+  } catch(e) {
+    resultEl.style.display = 'block';
+    resultEl.className = 'result error';
+    resultEl.innerHTML = '<h3>❌ Connection error</h3><p>' + e.message + '</p>';
+  }
+}
+</script>
+</body>
+</html>
