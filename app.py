@@ -189,7 +189,7 @@ TEAMS = {
 }
 MATCH_ORDER = {
     "RCB vs SRH": 1,"MI vs KKR": 2,"RR vs CSK": 3,"PBKS vs GT": 4,"LSG vs DC": 5,
-    "KKR vs SRH": 6,"CSK vs PBKS": 7,"MI vs DC": 8,"RR vs GT": 9,"SRH vs LSG": 10,
+    "KKR vs SRH": 6,"CSK vs PBKS": 7,"MI vs DC": 8,"RR vs GT": 9,"GT vs RR": 9,"SRH vs LSG": 10,
     "RCB vs CSK": 11,"KKR vs PBKS": 12,"RR vs MI": 13,"DC vs GT": 14,"KKR vs LSG": 15,
     "RR vs RCB": 16,"PBKS vs SRH": 17,"CSK vs DC": 18,"LSG vs GT": 19,"MI vs RCB": 20,
     "SRH vs RR": 21,"CSK vs KKR": 22,"RCB vs LSG": 23,"MI vs PBKS": 24,"GT vs KKR": 25,
@@ -1172,3 +1172,4 @@ def generate_banter():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
+    
