@@ -625,9 +625,7 @@ function openPlayerModal(name) {
           if (parts.length === 2) {
             const rev = parts[1] + ' vs ' + parts[0];
             if (MATCH_DATES_FE[rev]) {
-              // Use match order to pick correct date when two matches have same name
-              const matchOrder = m.match_num || MATCH_ORDER_FE.indexOf(m.match);
-              if (matchOrder <= 10) return '2026-04-04'; // M9 RR vs GT / GT vs RR
+              if (m.match === 'GT vs RR') return '2026-04-04';
               return MATCH_DATES_FE[rev];
             }
           }
