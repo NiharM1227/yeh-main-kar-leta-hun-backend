@@ -254,6 +254,7 @@
     <button class="nav-btn" onclick="showTab('matches')">Matches</button>
     <button class="nav-btn" onclick="showTab('teams')">My Team</button>
     <button class="nav-btn" onclick="showTab('players')">Players</button>
+    <button class="nav-btn" onclick="showTab('today')">🏏 Today</button>
     <button class="nav-btn" onclick="showTab('banter')">🔥 Banter</button>
     <button class="nav-btn" onclick="showTab('rules')">Rules</button>
   </nav>
@@ -274,6 +275,11 @@
     <div class="section-label">Select a Team</div>
     <div class="team-select" id="team-buttons"></div>
     <div id="team-details"></div>
+  </div>
+
+  <div class="section" id="tab-today">
+    <div class="section-label">Today's Players</div>
+    <div id="today-content"><div class="loading">Loading...</div></div>
   </div>
 
   <div class="section" id="tab-banter">
@@ -387,6 +393,7 @@ async function loadAll() {
     renderTeamButtons();
     renderMatchPills();
     renderPlayerList();
+    if (document.getElementById('tab-today').classList.contains('active')) renderToday();
   } catch(e) {
     console.error(e);
   }
@@ -466,8 +473,12 @@ function getTodaysMatches() {
 function getTeamsPlayingToday() {
   const matches = getTodaysMatches();
   const teams = new Set();
+  const aliases = {'PK':'PBKS','PBKS':'PK'};
   matches.forEach(m => {
-    m.split(' vs ').forEach(t => teams.add(t));
+    m.split(' vs ').forEach(t => {
+      teams.add(t);
+      if (aliases[t]) teams.add(aliases[t]);
+    });
   });
   return teams;
 }
@@ -707,12 +718,73 @@ function openPlayerModal(name) {
 
 function closeModal(e) { if (e.target.id === 'modal') document.getElementById('modal').classList.remove('open'); }
 
+
+function renderToday() {
+  const container = document.getElementById('today-content');
+  const teamsToday = getTeamsPlayingToday();
+  const todayMatches = getTodaysMatches();
+
+  if (teamsToday.size === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No IPL matches today 🏖️</div>';
+    return;
+  }
+
+  const aliases = {'PK':'PBKS','PBKS':'PK'};
+  const isPlayingToday = (ipl) => teamsToday.has(ipl) || (aliases[ipl] && teamsToday.has(aliases[ipl]));
+
+  let html = '';
+
+  // Show today's matches
+  html += '<div style="margin-bottom:16px">';
+  todayMatches.forEach(m => {
+    html += `<div style="background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:12px">
+      <span style="font-family:'Bebas Neue';font-size:20px;color:var(--accent)">${m}</span>
+    </div>`;
+  });
+  html += '</div>';
+
+  // Show players by owner
+  Object.entries(teamsData).forEach(([owner, players]) => {
+    const activePlayers = players.filter(p => isPlayingToday(p.ipl) && !p.ruled_out);
+    if (activePlayers.length === 0) return;
+
+    const lb = lbData.find(t => t.name === owner);
+    const rank = lb ? `#${lb.rank}` : '';
+
+    html += `<div style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-family:'Bebas Neue';font-size:18px;color:var(--accent);letter-spacing:1px">${owner}</div>
+        <div style="font-size:12px;color:var(--muted);font-family:'DM Mono'">${rank}</div>
+      </div>
+      ${activePlayers.map(p => {
+        const ptsClass = p.display_pts > 0 ? '' : p.display_pts < 0 ? 'neg' : 'zero';
+        const cvcBadge = p.cvc ? `<span class="cvc-badge ${p.cvc==='C'?'c-badge':'vc-badge'}">${p.cvc}</span>` : '';
+        const multLabel = p.cvc === 'C' ? '×2' : p.cvc === 'VC' ? '×1.5' : '';
+        return `<div class="player-card" onclick="openPlayerModal('${p.name}')" style="border-color:var(--accent)">
+          <div class="player-role-dot ${roleDot(p.role)}"></div>
+          <div class="player-info">
+            <div class="player-name">${p.name}</div>
+            <div class="player-meta">${p.ipl||'?'} ${cvcBadge}</div>
+          </div>
+          <div>
+            <div class="player-pts ${ptsClass}">${p.display_pts}</div>
+            <div class="player-pts-label">pts${multLabel}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  });
+
+  container.innerHTML = html;
+}
+
 function showTab(tab) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById(`tab-${tab}`).classList.add('active');
   document.querySelector(`[onclick="showTab('${tab}')"]`).classList.add('active');
   if (tab === 'banter') { loadBanterReactions().then(() => loadBanter()); }
+  if (tab === 'today') { renderToday(); }
 }
 
 // ---- BANTER ----
