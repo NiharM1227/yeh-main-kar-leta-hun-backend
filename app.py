@@ -9,6 +9,7 @@ from psycopg2.extras import RealDictCursor
 from flask import Flask, request, jsonify, render_template, send_from_directory, make_response
 from flask_cors import CORS
 app = Flask(__name__)
+app.config["TEMPLATES_AUTO_RELOAD"] = True
 CORS(app)
 client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 def get_db():
@@ -1172,4 +1173,3 @@ def generate_banter():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
-    
