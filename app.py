@@ -129,9 +129,9 @@ TEAMS = {
     ]},
     "Vikram Jumani": {"players": [
         {"name":"Yashasvi Jaiswal","role":"Batsman","ipl":"RR","cvc":"C"},
-        {"name":"Nicholas Pooran","role":"Batsman","ipl":"LSG","cvc":None},
+        {"name":"Nicholas Pooran","role":"Batsman","ipl":"LSG","cvc":"VC"},
         {"name":"Shreyas Iyer","role":"Batsman","ipl":"PK","cvc":None},
-        {"name":"Priyansh Arya","role":"Batsman","ipl":"PK","cvc":"VC"},
+        {"name":"Priyansh Arya","role":"Batsman","ipl":"PK","cvc":None},
         {"name":"Shimron Hetmyer","role":"Batsman","ipl":"RR","cvc":None},
         {"name":"Ravi Bishnoi","role":"Bowler","ipl":"RR","cvc":None},
         {"name":"Pathum Nissanka","role":"Batsman","ipl":"DC","cvc":None},
@@ -143,12 +143,12 @@ TEAMS = {
         {"name":"Prashant Veer","role":"Bowler","ipl":"CSK","cvc":None},
     ]},
     "Rishub Bubna": {"players": [
-        {"name":"Hardik Pandya","role":"All-rounder","ipl":"MI","cvc":None},
+        {"name":"Hardik Pandya","role":"All-rounder","ipl":"MI","cvc":"C"},
         {"name":"Axar Patel","role":"All-rounder","ipl":"DC","cvc":"VC"},
         {"name":"Tilak Varma","role":"Batsman","ipl":"MI","cvc":None},
         {"name":"Kuldeep Yadav","role":"Bowler","ipl":"DC","cvc":None},
         {"name":"Cameron Green","role":"All-rounder","ipl":"KKR","cvc":None},
-        {"name":"Rajat Patidar","role":"Batsman","ipl":"RCB","cvc":"C"},
+        {"name":"Rajat Patidar","role":"Batsman","ipl":"RCB","cvc":None},
         {"name":"Glenn Phillips","role":"All-rounder","ipl":"GT","cvc":None},
         {"name":"Mitchell Santner","role":"All-rounder","ipl":"MI","cvc":None},
         {"name":"Vaibhav Arora","role":"Bowler","ipl":"KKR","cvc":None},
@@ -159,8 +159,8 @@ TEAMS = {
     ]},
     "Nihar Mehta": {"players": [
         {"name":"KL Rahul","role":"Batsman","ipl":"DC","cvc":"C"},
-        {"name":"Aiden Markram","role":"All-rounder","ipl":"LSG","cvc":None},
-        {"name":"Vaibhav Sooryavanshi","role":"Batsman","ipl":"RR","cvc":"VC"},
+        {"name":"Aiden Markram","role":"All-rounder","ipl":"LSG","cvc":"VC"},
+        {"name":"Vaibhav Sooryavanshi","role":"Batsman","ipl":"RR","cvc":None},
         {"name":"Shivam Dube","role":"All-rounder","ipl":"CSK","cvc":None},
         {"name":"Ajinkya Rahane","role":"Batsman","ipl":"KKR","cvc":None},
         {"name":"Sarfaraz Khan","role":"Batsman","ipl":"CSK","cvc":None},
@@ -174,8 +174,8 @@ TEAMS = {
     ]},
     "Qais / Vaishali": {"players": [
         {"name":"Suryakumar Yadav","role":"Batsman","ipl":"MI","cvc":"C"},
-        {"name":"Varun Chakravarthy","role":"Bowler","ipl":"KKR","cvc":None},
-        {"name":"Jos Buttler","role":"Batsman","ipl":"GT","cvc":"VC"},
+        {"name":"Varun Chakravarthy","role":"Bowler","ipl":"KKR","cvc":"VC"},
+        {"name":"Jos Buttler","role":"Batsman","ipl":"GT","cvc":None},
         {"name":"Philip Salt","role":"Batsman","ipl":"RCB","cvc":None},
         {"name":"Trent Boult","role":"Bowler","ipl":"MI","cvc":None},
         {"name":"Rashid Khan","role":"Bowler","ipl":"GT","cvc":None},
@@ -190,7 +190,7 @@ TEAMS = {
 }
 MATCH_ORDER = {
     "RCB vs SRH": 1,"MI vs KKR": 2,"RR vs CSK": 3,"PBKS vs GT": 4,"LSG vs DC": 5,
-    "KKR vs SRH": 6,"CSK vs PBKS": 7,"MI vs DC": 8,"RR vs GT": 9,"SRH vs LSG": 10,
+    "KKR vs SRH": 6,"CSK vs PBKS": 7,"MI vs DC": 8,"RR vs GT": 9,"GT vs RR": 9,"GT vs RR (M9)": 9,"SRH vs LSG": 10,
     "RCB vs CSK": 11,"KKR vs PBKS": 12,"RR vs MI": 13,"DC vs GT": 14,"KKR vs LSG": 15,
     "RR vs RCB": 16,"PBKS vs SRH": 17,"CSK vs DC": 18,"LSG vs GT": 19,"MI vs RCB": 20,
     "SRH vs RR": 21,"CSK vs KKR": 22,"RCB vs LSG": 23,"MI vs PBKS": 24,"GT vs KKR": 25,
@@ -202,12 +202,12 @@ MATCH_ORDER = {
     "DC vs KKR": 51,"RR vs GT": 52,"CSK vs LSG": 53,"RCB vs MI": 54,"PBKS vs DC": 55,
     "GT vs SRH": 56,"RCB vs KKR": 57,"PBKS vs MI": 58,"LSG vs CSK": 59,"KKR vs GT": 60,
     "PBKS vs RCB": 61,"DC vs RR": 62,"CSK vs SRH": 63,"RR vs LSG": 64,"KKR vs MI": 65,
-    "CSK vs GT": 66,"SRH vs RCB": 67,"LSG vs PBKS": 68,"MI vs RR": 69,"KKR vs DC": 70,
+    "CSK vs GT": 66,"SRH vs RCB": 67,"LSG vs PBKS": 68,"MI vs RR": 69,"KKR vs DC": 70,"RR vs GT (M52)": 52,"GT vs RR (M9)": 9,"RCB vs GT (Q1)": 71,"RR vs SRH (E1)": 72,"GT vs RR (E2)": 73,"F": 74,
 }
 MATCH_DATES = {
     "RCB vs SRH": "2026-03-28","MI vs KKR": "2026-03-29","RR vs CSK": "2026-03-30",
     "PBKS vs GT": "2026-03-31","LSG vs DC": "2026-04-01","KKR vs SRH": "2026-04-02",
-    "CSK vs PBKS": "2026-04-03","MI vs DC": "2026-04-04","RR vs GT": "2026-04-04",
+    "CSK vs PBKS": "2026-04-03","MI vs DC": "2026-04-04","RR vs GT": "2026-04-04","GT vs RR": "2026-04-04","GT vs RR (M9)": "2026-04-04",
     "SRH vs LSG": "2026-04-05","RCB vs CSK": "2026-04-05","KKR vs PBKS": "2026-04-06",
     "RR vs MI": "2026-04-07","DC vs GT": "2026-04-08","KKR vs LSG": "2026-04-09",
     "RR vs RCB": "2026-04-10","PBKS vs SRH": "2026-04-11","CSK vs DC": "2026-04-11",
@@ -228,7 +228,7 @@ MATCH_DATES = {
     "PBKS vs RCB": "2026-05-17","DC vs RR": "2026-05-17","CSK vs SRH": "2026-05-18",
     "RR vs LSG": "2026-05-19","KKR vs MI": "2026-05-20","CSK vs GT": "2026-05-21",
     "SRH vs RCB": "2026-05-22","LSG vs PBKS": "2026-05-23","MI vs RR": "2026-05-24",
-    "KKR vs DC": "2026-05-24",
+    "KKR vs DC": "2026-05-24","RR vs GT (M52)": "2026-05-09","GT vs RR (M9)": "2026-04-04","RCB vs GT (Q1)": "2026-05-20","RR vs SRH (E1)": "2026-05-21","GT vs RR (E2)": "2026-05-23","F": "2026-05-25","RR vs GT (M52)": "2026-05-09","RCB vs GT (Q1)": "2026-05-20","RR vs SRH (E1)": "2026-05-21","GT vs RR (E2)": "2026-05-23","F": "2026-05-25",
 }
 def get_match_date(match_name):
     if match_name in MATCH_DATES:
@@ -298,6 +298,7 @@ NAME_ALIASES = {
     "KL Rahul": "KL Rahul",
     "Digvesh Singh Rathi": "Digvesh Rathi",
     "Vijaykumar Vyshak": "Vyshak Vijaykumar",
+    "Abishek Porel": "Abhishek Porel",
 }
 def normalize_name(name):
     if name in NAME_ALIASES:
@@ -353,15 +354,15 @@ def get_leaderboard():
             if p["cvc"] in ("C", "VC"):
                 cvc_state[p["name"]] = p["cvc"]
         if owner in cvc_history:
-            changes = sorted(cvc_history[owner], key=lambda c: c["date"], reverse=True)
+            changes = sorted(cvc_history[owner], key=lambda c: c["date"])
             for change in changes:
-                if change["date"] >= match_date:
+                if change["date"] <= match_date:
                     change_type = change["type"]
                     to_player = change["to_player"]
                     from_player = change["from_player"]
-                    if to_player in cvc_state and cvc_state[to_player] == change_type:
-                        del cvc_state[to_player]
-                    cvc_state[from_player] = change_type
+                    if from_player in cvc_state and cvc_state[from_player] == change_type:
+                        del cvc_state[from_player]
+                    cvc_state[to_player] = change_type
         return cvc_state
     def get_multiplier(owner, player_name, match_name):
         cvc_state = get_cvc_at_match_time(owner, match_name)
@@ -444,22 +445,6 @@ def add_replacement():
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-@app.route("/api/delete-replacement/<int:rep_id>", methods=["GET","POST"])
-def delete_replacement(rep_id):
-    admin_key = request.headers.get("X-Admin-Key", "") or request.args.get("key", "")
-    if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
-        return jsonify({"error": "Unauthorized"}), 401
-    try:
-        with get_db() as conn:
-            with conn.cursor() as cur:
-                cur.execute("DELETE FROM replacements WHERE id=%s", (rep_id,))
-                deleted = cur.rowcount
-            conn.commit()
-        return jsonify({"success": True, "deleted": deleted})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
 @app.route("/api/replacements")
 def api_replacements():
     return jsonify({"replacements": get_all_replacements()})
@@ -485,15 +470,15 @@ def api_teams():
             if p["cvc"] in ("C", "VC"):
                 cvc_state[p["name"]] = p["cvc"]
         if owner in cvc_history:
-            changes = sorted(cvc_history[owner], key=lambda c: c["date"], reverse=True)
+            changes = sorted(cvc_history[owner], key=lambda c: c["date"])
             for change in changes:
-                if change["date"] >= match_date:
+                if change["date"] <= match_date:
                     to_player = change["to_player"]
                     from_player = change["from_player"]
                     change_type = change["type"]
-                    if to_player in cvc_state and cvc_state[to_player] == change_type:
-                        del cvc_state[to_player]
-                    cvc_state[from_player] = change_type
+                    if from_player in cvc_state and cvc_state[from_player] == change_type:
+                        del cvc_state[from_player]
+                    cvc_state[to_player] = change_type
         return cvc_state
     all_replacements = get_all_replacements()
     replacement_effective = {}
@@ -557,7 +542,7 @@ def api_players():
 def process_players(players_data, match_name, mom_player):
     merged = {}
     for p in players_data:
-        name = p["player"].strip()
+        name = normalize_name(p["player"].strip())
         if name not in merged:
             merged[name] = {"player": name, "role": p.get("role") or get_player_role(name), "runs": p.get("runs", 0), "fours": p.get("fours", 0), "sixes": p.get("sixes", 0), "wickets": p.get("wickets", 0), "catches": p.get("catches", 0), "stumpings": p.get("stumpings", 0), "maidens": p.get("maidens", 0), "dismissal": p.get("dismissal", "DNB"), "mom": p.get("mom", 0), "hattrick": p.get("hattrick", 0)}
         else:
@@ -588,6 +573,69 @@ def process_players(players_data, match_name, mom_player):
                 mom_applied = True
         new_entries.append({"match": match_name, "player": name, "role": p["role"], "runs": p["runs"], "fours": p["fours"], "sixes": p["sixes"], "wickets": p["wickets"], "catches": p["catches"], "stumpings": p["stumpings"], "maidens": p["maidens"], "dismissal": p["dismissal"], "mom": p["mom"], "hattrick": p["hattrick"], "pts": pts})
     return new_entries
+
+def scrape_cricbuzz(cricbuzz_match_id, match_name, mom_player):
+    try:
+        rapidapi_key = os.environ.get("RAPIDAPI_KEY", "")
+        if not rapidapi_key:
+            return None, "RapidAPI key not configured"
+        url = f"https://cricbuzz-cricket.p.rapidapi.com/mcenter/v1/{cricbuzz_match_id}/hscard"
+        headers = {"x-rapidapi-host": "cricbuzz-cricket.p.rapidapi.com", "x-rapidapi-key": rapidapi_key}
+        response = req.get(url, headers=headers, timeout=15)
+        response.raise_for_status()
+        data = response.json()
+        if "scorecard" not in data:
+            return None, f"No scorecard: {data.get('message', 'Unknown error')}"
+        players = {}
+        def get_or_create(name):
+            if name not in players:
+                players[name] = {"player": name, "role": get_player_role(name), "runs": 0, "fours": 0, "sixes": 0, "wickets": 0, "catches": 0, "stumpings": 0, "maidens": 0, "dismissal": "DNB", "mom": 0, "hattrick": 0}
+            return players[name]
+        for innings in data["scorecard"]:
+            for bat in innings.get("batsman", []):
+                name = bat.get("name", "").strip()
+                if not name: continue
+                p = get_or_create(name)
+                runs = int(bat.get("runs", 0) or 0)
+                fours = int(bat.get("fours", 0) or 0)
+                sixes = int(bat.get("sixes", 0) or 0)
+                outdec = bat.get("outdec", "") or ""
+                if runs > p["runs"]:
+                    p["runs"] = runs
+                    p["fours"] = fours
+                    p["sixes"] = sixes
+                if outdec:
+                    if "not out" in outdec.lower() or outdec.strip() == "batting":
+                        p["dismissal"] = "Not Out"
+                    elif outdec.strip():
+                        p["dismissal"] = "Out"
+                if "c " in outdec.lower() and " b " in outdec.lower():
+                    try:
+                        catcher = outdec.split("c ")[1].split(" b ")[0].strip()
+                        if catcher and catcher != "and":
+                            cp = get_or_create(catcher)
+                            cp["catches"] = cp.get("catches", 0) + 1
+                    except: pass
+                elif "st " in outdec.lower() and " b " in outdec.lower():
+                    try:
+                        stumper = outdec.split("st ")[1].split(" b ")[0].strip()
+                        if stumper:
+                            sp = get_or_create(stumper)
+                            sp["stumpings"] = sp.get("stumpings", 0) + 1
+                    except: pass
+            for bowl in innings.get("bowler", []):
+                name = bowl.get("name", "").strip()
+                if not name: continue
+                p = get_or_create(name)
+                p["wickets"] += int(bowl.get("wickets", 0) or 0)
+                p["maidens"] += int(bowl.get("maidens", 0) or 0)
+        if not players:
+            return None, "No player data found"
+        new_entries = process_players(list(players.values()), match_name, mom_player)
+        return new_entries, None
+    except Exception as e:
+        return None, str(e)
+
 @app.route("/api/fetch-scorecard", methods=["POST"])
 def fetch_scorecard():
     admin_key = request.headers.get("X-Admin-Key", "")
@@ -597,8 +645,17 @@ def fetch_scorecard():
     match_name = data.get("match_name", "").strip()
     match_id = data.get("match_id", "").strip()
     mom_player = data.get("mom_player", "").strip()
-    if not match_name or not match_id:
-        return jsonify({"error": "Match name and match ID required"}), 400
+    cricbuzz_match_id = data.get("cricbuzz_match_id", "").strip()
+    if not match_name:
+        return jsonify({"error": "Match name required"}), 400
+    if cricbuzz_match_id:
+        new_entries, error = scrape_cricbuzz(cricbuzz_match_id, match_name, mom_player)
+        if error:
+            return jsonify({"error": f"Cricbuzz error: {error}"}), 500
+        save_stats(new_entries)
+        return jsonify({"success": True, "match": match_name, "players_processed": len(new_entries), "entries": new_entries, "source": "cricbuzz"})
+    if not match_id:
+        return jsonify({"error": "Match ID required"}), 400
     api_key = os.environ.get("CRICKETDATA_API_KEY", "")
     if not api_key:
         return jsonify({"error": "CricketData API key not configured"}), 500
@@ -908,6 +965,107 @@ def generate_banter():
         return jsonify({"banter": banter})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route("/api/fix-player-name", methods=["POST"])
+def fix_player_name():
+    admin_key = request.headers.get("X-Admin-Key", "")
+    if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    old_name = data.get("old_name", "").strip()
+    new_name = data.get("new_name", "").strip()
+    if not old_name or not new_name:
+        return jsonify({"error": "old_name and new_name required"}), 400
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("UPDATE match_stats SET player=%s WHERE player=%s", (new_name, old_name))
+                updated = cur.rowcount
+            conn.commit()
+        return jsonify({"success": True, "updated": updated})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/update-cvc-date", methods=["POST"])
+def update_cvc_date():
+    admin_key = request.headers.get("X-Admin-Key", "")
+    if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json()
+    cvc_id = data.get("id")
+    new_date = data.get("date", "").strip()
+    if not cvc_id or not new_date:
+        return jsonify({"error": "id and date required"}), 400
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("UPDATE cvc_changes SET date=%s WHERE id=%s", (new_date, cvc_id))
+                updated = cur.rowcount
+            conn.commit()
+        return jsonify({"success": True, "updated": updated})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/delete-replacement/<int:rep_id>", methods=["GET", "POST"])
+def delete_replacement(rep_id):
+    admin_key = request.headers.get("X-Admin-Key", "") or request.args.get("key", "")
+    if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM replacements WHERE id=%s", (rep_id,))
+                deleted = cur.rowcount
+            conn.commit()
+        return jsonify({"success": True, "deleted": deleted})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/debug-player")
+def debug_player():
+    player = request.args.get("player", "").strip()
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT match, player, pts FROM match_stats WHERE player ILIKE %s ORDER BY id", (f"%{player}%",))
+                rows = [dict(r) for r in cur.fetchall()]
+        cvc = get_all_cvc_changes()
+        return jsonify({"stats": rows, "cvc_changes": cvc})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/debug-cvc")
+def debug_cvc():
+    owner = request.args.get("owner", "Harsh Gupta")
+    match = request.args.get("match", "RR vs DC")
+    cvc_changes = get_all_cvc_changes()
+    cvc_history = {}
+    for change in cvc_changes:
+        team = change["team"]
+        if team not in cvc_history:
+            cvc_history[team] = []
+        cvc_history[team].append(change)
+    match_date = get_match_date(match)
+    cvc_state = {}
+    for p in TEAMS[owner]["players"]:
+        if p["cvc"] in ("C", "VC"):
+            cvc_state[p["name"]] = p["cvc"]
+    initial_state = dict(cvc_state)
+    applied = []
+    if owner in cvc_history:
+        changes = sorted(cvc_history[owner], key=lambda c: c["date"])
+        for change in changes:
+            if change["date"] <= match_date:
+                t = change["type"]
+                fp = change["from_player"]
+                tp = change["to_player"]
+                if fp in cvc_state and cvc_state[fp] == t:
+                    del cvc_state[fp]
+                cvc_state[tp] = t
+                applied.append(change)
+    return jsonify({"owner": owner, "match": match, "match_date": match_date, "initial_state": initial_state, "applied_changes": applied, "final_cvc_state": cvc_state})
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
+    
