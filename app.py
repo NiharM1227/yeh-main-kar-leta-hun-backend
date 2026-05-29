@@ -444,6 +444,22 @@ def add_replacement():
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route("/api/delete-replacement/<int:rep_id>", methods=["GET","POST"])
+def delete_replacement(rep_id):
+    admin_key = request.headers.get("X-Admin-Key", "") or request.args.get("key", "")
+    if admin_key != os.environ.get("ADMIN_KEY", "ipl2026admin"):
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM replacements WHERE id=%s", (rep_id,))
+                deleted = cur.rowcount
+            conn.commit()
+        return jsonify({"success": True, "deleted": deleted})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/api/replacements")
 def api_replacements():
     return jsonify({"replacements": get_all_replacements()})
