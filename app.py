@@ -228,7 +228,7 @@ MATCH_DATES = {
     "PBKS vs RCB": "2026-05-17","DC vs RR": "2026-05-17","CSK vs SRH": "2026-05-18",
     "RR vs LSG": "2026-05-19","KKR vs MI": "2026-05-20","CSK vs GT": "2026-05-21",
     "SRH vs RCB": "2026-05-22","LSG vs PBKS": "2026-05-23","MI vs RR": "2026-05-24",
-    "KKR vs DC": "2026-05-24","RR vs GT (M52)": "2026-05-09","GT vs RR (M9)": "2026-04-04","RCB vs GT (Q1)": "2026-05-20","RR vs SRH (E1)": "2026-05-21","GT vs RR (E2)": "2026-05-23","F": "2026-05-25","RR vs GT (M52)": "2026-05-09","RCB vs GT (Q1)": "2026-05-20","RR vs SRH (E1)": "2026-05-21","GT vs RR (E2)": "2026-05-23","F": "2026-05-25",
+    "KKR vs DC": "2026-05-24","RR vs GT (M52)": "2026-05-09","GT vs RR (M9)": "2026-04-04","RCB vs GT (Q1)": "2026-05-26","RR vs SRH (E1)": "2026-05-27","GT vs RR (E2)": "2026-05-29","F": "2026-05-31","RR vs GT (M52)": "2026-05-09","RCB vs GT (Q1)": "2026-05-26","RR vs SRH (E1)": "2026-05-27","GT vs RR (E2)": "2026-05-29","F": "2026-05-31",
 }
 def get_match_date(match_name):
     if match_name in MATCH_DATES:
@@ -1081,3 +1081,4 @@ def debug_cvc():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
+    
