@@ -251,11 +251,10 @@
   </div>
   <nav class="nav">
     <button class="nav-btn active" onclick="showTab('leaderboard')">Leaderboard</button>
-    <button class="nav-btn" onclick="showTab('today')">🏏 Today</button>
-    <button class="nav-btn" onclick="showTab('banter')">🔥 Banter</button>
     <button class="nav-btn" onclick="showTab('matches')">Matches</button>
     <button class="nav-btn" onclick="showTab('teams')">My Team</button>
     <button class="nav-btn" onclick="showTab('players')">Players</button>
+    <button class="nav-btn" onclick="showTab('banter')">🔥 Banter</button>
     <button class="nav-btn" onclick="showTab('rules')">Rules</button>
   </nav>
 </div>
@@ -275,11 +274,6 @@
     <div class="section-label">Select a Team</div>
     <div class="team-select" id="team-buttons"></div>
     <div id="team-details"></div>
-  </div>
-
-  <div class="section" id="tab-today">
-    <div class="section-label">Today's Players</div>
-    <div id="today-content"><div class="loading">Loading...</div></div>
   </div>
 
   <div class="section" id="tab-banter">
@@ -356,26 +350,15 @@
 let lbData = [], matchesList = [], teamsData = {}, playersData = [], cvcChanges = [], replacements = [];
 let roleFilter = 'All', matchFilter = 'All';
 
-
-const MATCH_DATES_FE = {"RCB vs SRH":"2026-03-28","MI vs KKR":"2026-03-29","RR vs CSK":"2026-03-30","PBKS vs GT":"2026-03-31","LSG vs DC":"2026-04-01","KKR vs SRH":"2026-04-02","CSK vs PBKS":"2026-04-03","MI vs DC":"2026-04-04","RR vs GT":"2026-04-04","SRH vs LSG":"2026-04-05","RCB vs CSK":"2026-04-05","KKR vs PBKS":"2026-04-06","RR vs MI":"2026-04-07","DC vs GT":"2026-04-08","KKR vs LSG":"2026-04-09","RR vs RCB":"2026-04-10","PBKS vs SRH":"2026-04-11","CSK vs DC":"2026-04-11","LSG vs GT":"2026-04-12","MI vs RCB":"2026-04-12","SRH vs RR":"2026-04-13","CSK vs KKR":"2026-04-14","RCB vs LSG":"2026-04-15","MI vs PBKS":"2026-04-16","GT vs KKR":"2026-04-17","RCB vs DC":"2026-04-18","SRH vs CSK":"2026-04-18","KKR vs RR":"2026-04-19","PBKS vs LSG":"2026-04-19","GT vs MI":"2026-04-20","SRH vs DC":"2026-04-21","LSG vs RR":"2026-04-22","MI vs CSK":"2026-04-23","RCB vs GT":"2026-04-24","DC vs PBKS":"2026-04-25","RR vs SRH":"2026-04-25","GT vs CSK":"2026-04-26","LSG vs KKR":"2026-04-26","DC vs RCB":"2026-04-27","PBKS vs RR":"2026-04-28","MI vs SRH":"2026-04-29","GT vs RCB":"2026-04-30","RR vs DC":"2026-05-01","CSK vs MI":"2026-05-02","SRH vs KKR":"2026-05-03","GT vs PBKS":"2026-05-03","MI vs LSG":"2026-05-04","DC vs CSK":"2026-05-05","SRH vs PBKS":"2026-05-06","LSG vs RCB":"2026-05-07","DC vs KKR":"2026-05-08","RR vs GT":"2026-05-09","CSK vs LSG":"2026-05-10","RCB vs MI":"2026-05-10","PBKS vs DC":"2026-05-11","GT vs SRH":"2026-05-12","RCB vs KKR":"2026-05-13","PBKS vs MI":"2026-05-14","LSG vs CSK":"2026-05-15","KKR vs GT":"2026-05-16","PBKS vs RCB":"2026-05-17","DC vs RR":"2026-05-17","CSK vs SRH":"2026-05-18","RR vs LSG":"2026-05-19","KKR vs MI":"2026-05-20","CSK vs GT":"2026-05-21","SRH vs RCB":"2026-05-22","LSG vs PBKS":"2026-05-23","MI vs RR":"2026-05-24","KKR vs DC":"2026-05-24"};
-const MATCH_ORDER_FE = ["RCB vs SRH","MI vs KKR","RR vs CSK","PBKS vs GT","LSG vs DC","KKR vs SRH","CSK vs PBKS","MI vs DC","GT vs RR","SRH vs LSG","RCB vs CSK","KKR vs PBKS","RR vs MI","DC vs GT","KKR vs LSG","RR vs RCB","PBKS vs SRH","CSK vs DC","LSG vs GT","MI vs RCB","SRH vs RR","CSK vs KKR","RCB vs LSG","MI vs PBKS","GT vs KKR","RCB vs DC","SRH vs CSK","KKR vs RR","PBKS vs LSG","GT vs MI","SRH vs DC","LSG vs RR","MI vs CSK","RCB vs GT","DC vs PBKS","RR vs SRH","GT vs CSK","LSG vs KKR","DC vs RCB","PBKS vs RR","MI vs SRH","GT vs RCB","RR vs DC","CSK vs MI","SRH vs KKR","GT vs PBKS","MI vs LSG","DC vs CSK","SRH vs PBKS","LSG vs RCB","DC vs KKR","RR vs GT","CSK vs LSG","RCB vs MI","PBKS vs DC","GT vs SRH","RCB vs KKR","PBKS vs MI","LSG vs CSK","KKR vs GT","PBKS vs RCB","DC vs RR","CSK vs SRH","RR vs LSG","KKR vs MI","CSK vs GT","SRH vs RCB","LSG vs PBKS","MI vs RR","KKR vs DC"];
-
-function getMatchIndex(matchName) {
-  // Exact match first - this correctly handles GT vs RR (M9) vs RR vs GT (M52)
-  let idx = MATCH_ORDER_FE.indexOf(matchName);
-  if (idx !== -1) return idx;
-  // Reversed name fallback only if exact not found
-  const parts = matchName.split(' vs ');
-  if (parts.length === 2) {
-    idx = MATCH_ORDER_FE.indexOf(parts[1] + ' vs ' + parts[0]);
-  }
-  return idx;
-}
+const MATCH_ORDER_FE = ["RCB vs SRH","MI vs KKR","RR vs CSK","PBKS vs GT","LSG vs DC","KKR vs SRH","CSK vs PBKS","MI vs DC","RR vs GT","SRH vs LSG","RCB vs CSK","KKR vs PBKS","RR vs MI","DC vs GT","KKR vs LSG","RR vs RCB","PBKS vs SRH","CSK vs DC","LSG vs GT","MI vs RCB","SRH vs RR","CSK vs KKR","RCB vs LSG","MI vs PBKS","GT vs KKR","RCB vs DC","SRH vs CSK","KKR vs RR","PBKS vs LSG","GT vs MI","SRH vs DC","LSG vs RR","MI vs CSK","RCB vs GT","DC vs PBKS","RR vs SRH","GT vs CSK","LSG vs KKR","DC vs RCB","PBKS vs RR","MI vs SRH","GT vs RCB","RR vs DC","CSK vs MI","SRH vs KKR","GT vs PBKS","MI vs LSG","DC vs CSK","SRH vs PBKS","LSG vs RCB","DC vs KKR","RR vs GT","CSK vs LSG","RCB vs MI","PBKS vs DC","GT vs SRH","RCB vs KKR","PBKS vs MI","LSG vs CSK","KKR vs GT","PBKS vs RCB","DC vs RR","CSK vs SRH","RR vs LSG","KKR vs MI","CSK vs GT","SRH vs RCB","LSG vs PBKS","MI vs RR","KKR vs DC"];
 
 function sortMatches(matches) {
   return [...matches].sort((a, b) => {
-    const ai = getMatchIndex(a);
-    const bi = getMatchIndex(b);
+    let ai = MATCH_ORDER_FE.indexOf(a);
+    let bi = MATCH_ORDER_FE.indexOf(b);
+    // Try reversed name if not found
+    if (ai === -1) { const p = a.split(' vs '); if(p.length===2) ai = MATCH_ORDER_FE.indexOf(`${p[1]} vs ${p[0]}`); }
+    if (bi === -1) { const p = b.split(' vs '); if(p.length===2) bi = MATCH_ORDER_FE.indexOf(`${p[1]} vs ${p[0]}`); }
     return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
   });
 }
@@ -402,7 +385,6 @@ async function loadAll() {
     renderTeamButtons();
     renderMatchPills();
     renderPlayerList();
-    if (document.getElementById('tab-today').classList.contains('active')) renderToday();
   } catch(e) {
     console.error(e);
   }
@@ -427,7 +409,11 @@ function renderLeaderboard() {
 }
 
 function getMatchNum(matchName) {
-  const idx = getMatchIndex(matchName);
+  let idx = MATCH_ORDER_FE.indexOf(matchName);
+  if (idx === -1) {
+    const p = matchName.split(' vs ');
+    if (p.length === 2) idx = MATCH_ORDER_FE.indexOf(`${p[1]} vs ${p[0]}`);
+  }
   return idx === -1 ? matchName : `M${idx + 1}`;
 }
 
@@ -465,29 +451,6 @@ function showTeam(owner) {
   }, 50);
 }
 
-
-function getTodaysMatches() {
-  const today = new Date().toISOString().split('T')[0];
-  const todayMatches = [];
-  for (const [match, date] of Object.entries(MATCH_DATES_FE)) {
-    if (date === today) todayMatches.push(match);
-  }
-  return todayMatches;
-}
-
-function getTeamsPlayingToday() {
-  const matches = getTodaysMatches();
-  const teams = new Set();
-  const aliases = {'PK':'PBKS','PBKS':'PK'};
-  matches.forEach(m => {
-    m.split(' vs ').forEach(t => {
-      teams.add(t);
-      if (aliases[t]) teams.add(aliases[t]);
-    });
-  });
-  return teams;
-}
-
 function renderTeamDetail(owner) {
   const players = teamsData[owner];
   if (!players) return;
@@ -498,30 +461,7 @@ function renderTeamDetail(owner) {
   const ownerCvcChanges = cvcChanges.filter(c => c.team === owner);
   const ownerReplacements = replacements.filter(r => r.team === owner);
 
-  const teamsToday = getTeamsPlayingToday();
-  const todayPlayers = players.filter(p => teamsToday.has(p.ipl) && !p.ruled_out);
-  const todaySection = todayPlayers.length > 0 ? `
-    <div style="margin-bottom:14px">
-      <div class="section-label">🏏 Playing Today</div>
-      ${todayPlayers.map(p => {
-        const ptsClass = p.display_pts > 0 ? '' : p.display_pts < 0 ? 'neg' : 'zero';
-        const cvcBadge = p.cvc ? `<span class="cvc-badge ${p.cvc==='C'?'c-badge':'vc-badge'}">${p.cvc}</span>` : '';
-        const multLabel = p.cvc === 'C' ? '×2' : p.cvc === 'VC' ? '×1.5' : '';
-        return `<div class="player-card" onclick="openPlayerModal('${p.name}')" style="border-color:var(--accent);border-width:1px">
-          <div class="player-role-dot ${roleDot(p.role)}"></div>
-          <div class="player-info">
-            <div class="player-name">${p.name}</div>
-            <div class="player-meta">${p.ipl||'?'} ${cvcBadge}</div>
-          </div>
-          <div>
-            <div class="player-pts ${ptsClass}">${p.display_pts}</div>
-            <div class="player-pts-label">pts${multLabel}</div>
-          </div>
-        </div>`;
-      }).join('')}
-    </div>` : '';
-
-  document.getElementById('team-details').innerHTML = todaySection + `
+  document.getElementById('team-details').innerHTML = `
     <div class="team-header-card">
       <div class="team-owner-name">${owner}</div>
       <div class="team-stats-row">
@@ -553,23 +493,46 @@ function renderTeamDetail(owner) {
           `).join('')}
         </div>` : ''}
     </div>
-    ${players.map(p => {
-      const ptsClass = p.display_pts > 0 ? '' : p.display_pts < 0 ? 'neg' : 'zero';
-      const cvcBadge = p.cvc ? `<span class="cvc-badge ${p.cvc==='C'?'c-badge':'vc-badge'}">${p.cvc}</span>` : '';
-      const multLabel = p.cvc === 'C' ? '×2' : p.cvc === 'VC' ? '×1.5' : '';
-      const ruledOut = p.ruled_out ? `<span style="font-size:10px;color:#ef4444;font-weight:600;margin-left:4px">🚫 Ruled Out</span>` : '';
-      return `<div class="player-card" onclick="openPlayerModal('${p.name}')" style="${p.ruled_out ? 'opacity:0.6' : ''}">
-        <div class="player-role-dot ${roleDot(p.role)}"></div>
-        <div class="player-info">
-          <div class="player-name">${p.name}${ruledOut}</div>
-          <div class="player-meta">${p.ipl||'?'} ${cvcBadge}</div>
-        </div>
-        <div>
-          <div class="player-pts ${ptsClass}">${p.display_pts}</div>
-          <div class="player-pts-label">pts${multLabel}</div>
-        </div>
-      </div>`;
-    }).join('')}`;
+    ${(() => {
+      const replaces = {};   // in_player -> out_player
+      const ruledOutNames = new Set();
+      ownerReplacements.forEach(r => {
+        replaces[r.in_player] = r.out_player;
+        ruledOutNames.add(r.out_player);
+      });
+      return players.map(p => {
+        if (ruledOutNames.has(p.name)) return '';
+        const outPlayerName = replaces[p.name];
+        const outPlayer = outPlayerName ? players.find(x => x.name === outPlayerName) : null;
+        const combinedPts = outPlayer ? p.display_pts + outPlayer.display_pts : p.display_pts;
+        const ptsClass = combinedPts > 0 ? '' : combinedPts < 0 ? 'neg' : 'zero';
+        const cvcBadge = p.cvc ? `<span class="cvc-badge ${p.cvc==='C'?'c-badge':'vc-badge'}">${p.cvc}</span>` : '';
+        const multLabel = p.cvc === 'C' ? '×2' : p.cvc === 'VC' ? '×1.5' : '';
+        const rightSide = outPlayer ? `
+          <div style="text-align:right">
+            <div class="player-pts ${ptsClass}">${combinedPts}</div>
+            <div class="player-pts-label">pts${multLabel}</div>
+            <div style="margin-top:6px">
+              <div style="font-size:10px;color:var(--muted);font-weight:600;text-align:right">${outPlayer.name}</div>
+              <div style="display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-top:1px">
+                <span style="font-size:9px;color:#ef4444;font-weight:700">🚫 Ruled Out</span>
+              </div>
+              <div style="font-size:11px;color:var(--muted);font-family:'DM Mono';text-align:right">${outPlayer.display_pts} prior pts</div>
+            </div>
+          </div>` : `<div>
+            <div class="player-pts ${ptsClass}">${combinedPts}</div>
+            <div class="player-pts-label">pts${multLabel}</div>
+          </div>`;
+        return `<div class="player-card" onclick="openPlayerModal('${p.name}', '${outPlayerName || ''}')">
+          <div class="player-role-dot ${roleDot(p.role)}"></div>
+          <div class="player-info">
+            <div class="player-name">${p.name}</div>
+            <div class="player-meta">${p.ipl||'?'} ${cvcBadge}</div>
+          </div>
+          ${rightSide}
+        </div>`;
+      }).join('');
+    })()}`;
 }
 
 function renderMatchPills() {
@@ -628,160 +591,47 @@ function renderPlayerList() {
   }).join('') || '<div style="text-align:center;padding:40px;color:var(--muted)">No players found</div>';
 }
 
-function openPlayerModal(name) {
+function openPlayerModal(name, outPlayerName) {
   const p = playersData.find(p => p.name === name);
   if (!p) return;
+  const outP = outPlayerName ? playersData.find(p => p.name === outPlayerName) : null;
   let ownerInfo = null;
   for (const [owner, players] of Object.entries(teamsData)) {
     const found = players.find(tp => tp.name === name);
     if (found) { ownerInfo = { owner, cvc: found.cvc }; break; }
   }
+  const combinedPts = outP ? p.total_pts + outP.display_pts : p.total_pts;
+  const combinedRuns = outP ? p.total_runs + outP.total_runs : p.total_runs;
+  const combinedWkts = outP ? p.total_wkts + outP.total_wkts : p.total_wkts;
+  const replacedLabel = outP ? `<div style="font-size:11px;color:#ef4444;margin-top:2px">replaced ${outP.name}</div>` : '';
+  const outPMatches = outP ? outP.matches.map(m => {
+    const cls = m.pts > 50 ? 'pts-good' : m.pts < 0 ? 'pts-bad' : 'pts-mid';
+    return '<div class="modal-match-row" style="opacity:0.55"><span class="modal-match-name" style="color:#ef4444">[' + outP.name + '] ' + m.match + '</span><div style="display:flex;align-items:center;gap:8px">' + (m.mom ? '<span style="font-size:11px">⭐ MOM</span>' : '') + '<span style="font-size:11px;color:var(--muted);font-family:DM Mono">' + m.runs + 'r ' + m.wkts + 'w</span><span class="modal-match-pts ' + cls + '">' + (m.pts > 0 ? '+' : '') + m.pts + '</span></div></div>';
+  }).join('') : '';
+  const ownMatches = p.matches.map(m => {
+    const cls = m.pts > 50 ? 'pts-good' : m.pts < 0 ? 'pts-bad' : 'pts-mid';
+    return '<div class="modal-match-row"><span class="modal-match-name">' + m.match + '</span><div style="display:flex;align-items:center;gap:8px">' + (m.mom ? '<span style="font-size:11px">⭐ MOM</span>' : '') + '<span style="font-size:11px;color:var(--muted);font-family:DM Mono">' + m.runs + 'r ' + m.wkts + 'w</span><span class="modal-match-pts ' + cls + '">' + (m.pts > 0 ? '+' : '') + m.pts + '</span></div></div>';
+  }).join('');
   document.getElementById('modal-content').innerHTML = `
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
       <div class="player-role-dot ${roleDot(p.role)}" style="width:12px;height:12px;flex-shrink:0"></div>
       <div>
         <div class="modal-player-name">${name}</div>
-        <div style="font-size:12px;color:var(--muted);font-family:'DM Mono'">${p.role}${ownerInfo?` · ${ownerInfo.owner}${ownerInfo.cvc?' ('+ownerInfo.cvc+')':''}`:' · Unowned'}</div>
+        <div style="font-size:12px;color:var(--muted);font-family:'DM Mono'">${p.role}${ownerInfo ? ' · ' + ownerInfo.owner + (ownerInfo.cvc ? ' (' + ownerInfo.cvc + ')' : '') : ' · Unowned'}</div>
+        ${replacedLabel}
       </div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
-      <div class="team-stat"><div class="val">${ownerInfo && teamsData[ownerInfo.owner] ? (teamsData[ownerInfo.owner].find(tp => tp.name === name) || {display_pts: p.total_pts}).display_pts : p.total_pts}</div><div class="lbl">Total Pts</div></div>
-      <div class="team-stat"><div class="val">${p.total_runs}</div><div class="lbl">Runs</div></div>
-      <div class="team-stat"><div class="val">${p.total_wkts}</div><div class="lbl">Wickets</div></div>
+      <div class="team-stat"><div class="val">${ownerInfo && teamsData[ownerInfo.owner] ? (teamsData[ownerInfo.owner].find(tp => tp.name === name) || {display_pts: combinedPts}).display_pts : combinedPts}</div><div class="lbl">Total Pts</div></div>
+      <div class="team-stat"><div class="val">${combinedRuns}</div><div class="lbl">Runs</div></div>
+      <div class="team-stat"><div class="val">${combinedWkts}</div><div class="lbl">Wickets</div></div>
     </div>
     <div style="font-family:'DM Mono';font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Match Breakdown</div>
-    ${(() => {
-      let cvcChangeDate = null;
-      let cvcRole = null;
-      if (ownerInfo) {
-        const ownerChanges = cvcChanges.filter(c => c.team === ownerInfo.owner && c.to_player === name);
-        if (ownerChanges.length > 0) {
-          const latest = ownerChanges.sort((a,b) => a.date.localeCompare(b.date))[0];
-          cvcChangeDate = latest.date;
-          cvcRole = latest.type === 'C' ? 'Captain' : 'Vice Captain';
-        }
-      }
-      // Find if this player was the ORIGINAL C/VC (before any change)
-      let originalRole = null;
-      let originalEndDate = null;
-      if (ownerInfo) {
-        // Check if this player is the from_player in any CVC change
-        const outgoingChange = cvcChanges.find(c => c.team === ownerInfo.owner && c.from_player === name);
-        if (outgoingChange) {
-          originalRole = outgoingChange.type; // 'C' or 'VC'
-          originalEndDate = outgoingChange.date;
-        }
-      }
-
-      let dividerInserted = false;
-      return p.matches.map(m => {
-        const cls = m.pts > 50 ? 'pts-good' : m.pts < 0 ? 'pts-bad' : 'pts-mid';
-        const matchDate = (() => {
-          if (MATCH_DATES_FE[m.match]) return MATCH_DATES_FE[m.match];
-          // Try reversed name
-          const parts = m.match.split(' vs ');
-          if (parts.length === 2) {
-            const rev = parts[1] + ' vs ' + parts[0];
-            if (MATCH_DATES_FE[rev]) {
-              if (m.match === 'GT vs RR') return '2026-04-04';
-              return MATCH_DATES_FE[rev];
-            }
-          }
-          return '';
-        })();
-
-        // New C/VC: multiplier applies from change date onwards
-        const isNewCVC = cvcChangeDate && matchDate && matchDate >= cvcChangeDate;
-        // Original C/VC: multiplier applies before change date
-        const isOriginalCVC = originalRole && originalEndDate && matchDate && matchDate < originalEndDate;
-
-        let multLabel = '';
-        if (isNewCVC) {
-          const mult = ownerInfo && ownerInfo.cvc === 'C' ? 'x2' : 'x1.5';
-          multLabel = '<span style="font-size:9px;background:var(--accent);color:#000;padding:1px 5px;border-radius:4px;font-weight:700">' + mult + '</span>';
-        } else if (isOriginalCVC) {
-          const mult = originalRole === 'C' ? 'x2' : 'x1.5';
-          multLabel = '<span style="font-size:9px;background:#6b6b8a;color:#fff;padding:1px 5px;border-radius:4px;font-weight:700">' + mult + '</span>';
-        }
-
-        let divider = '';
-        if (cvcChangeDate && !dividerInserted && isNewCVC) {
-          dividerInserted = true;
-          divider = '<div style="display:flex;align-items:center;gap:8px;margin:8px 0"><div style="flex:1;height:1px;background:var(--accent);opacity:0.4"></div><span style="font-size:9px;color:var(--accent);font-family:DM Mono;white-space:nowrap">' + cvcRole + ' from ' + cvcChangeDate + '</span><div style="flex:1;height:1px;background:var(--accent);opacity:0.4"></div></div>';
-        }
-        // Divider for original C/VC ending
-        let endDivider = '';
-        if (originalRole && originalEndDate && matchDate && matchDate === originalEndDate && !dividerInserted) {
-          endDivider = '<div style="display:flex;align-items:center;gap:8px;margin:8px 0"><div style="flex:1;height:1px;background:#6b6b8a;opacity:0.4"></div><span style="font-size:9px;color:#6b6b8a;font-family:DM Mono;white-space:nowrap">' + (originalRole === 'C' ? 'Captain' : 'Vice Captain') + ' until ' + originalEndDate + '</span><div style="flex:1;height:1px;background:#6b6b8a;opacity:0.4"></div></div>';
-        }
-
-        return divider + endDivider + '<div class="modal-match-row"><span class="modal-match-name">' + m.match + '</span><div style="display:flex;align-items:center;gap:8px">' + (m.mom ? '<span style="font-size:11px">⭐ MOM</span>' : '') + multLabel + '<span style="font-size:11px;color:var(--muted);font-family:DM Mono">' + m.runs + 'r ' + m.wkts + 'w</span><span class="modal-match-pts ' + cls + '">' + (m.pts > 0 ? '+' : '') + m.pts + '</span></div></div>';
-      }).join('');
-    })()}`;
+    ${outPMatches}${ownMatches}`;
   document.getElementById('modal').classList.add('open');
 }
 
 function closeModal(e) { if (e.target.id === 'modal') document.getElementById('modal').classList.remove('open'); }
-
-
-function renderToday() {
-  const container = document.getElementById('today-content');
-  const teamsToday = getTeamsPlayingToday();
-  const todayMatches = getTodaysMatches();
-
-  if (teamsToday.size === 0) {
-    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">No IPL matches today 🏖️</div>';
-    return;
-  }
-
-  const aliases = {'PK':'PBKS','PBKS':'PK'};
-  const isPlayingToday = (ipl) => teamsToday.has(ipl) || (aliases[ipl] && teamsToday.has(aliases[ipl]));
-
-  let html = '';
-
-  // Show today's matches
-  html += '<div style="margin-bottom:16px">';
-  todayMatches.forEach(m => {
-    html += `<div style="background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:12px">
-      <span style="font-family:'Bebas Neue';font-size:20px;color:var(--accent)">${m}</span>
-    </div>`;
-  });
-  html += '</div>';
-
-  // Show players by owner
-  Object.entries(teamsData).forEach(([owner, players]) => {
-    const activePlayers = players.filter(p => isPlayingToday(p.ipl) && !p.ruled_out);
-    if (activePlayers.length === 0) return;
-
-    const lb = lbData.find(t => t.name === owner);
-    const rank = lb ? `#${lb.rank}` : '';
-
-    html += `<div style="margin-bottom:16px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <div style="font-family:'Bebas Neue';font-size:18px;color:var(--accent);letter-spacing:1px">${owner}</div>
-        <div style="font-size:12px;color:var(--muted);font-family:'DM Mono'">${rank}</div>
-      </div>
-      ${activePlayers.map(p => {
-        const ptsClass = p.display_pts > 0 ? '' : p.display_pts < 0 ? 'neg' : 'zero';
-        const cvcBadge = p.cvc ? `<span class="cvc-badge ${p.cvc==='C'?'c-badge':'vc-badge'}">${p.cvc}</span>` : '';
-        const multLabel = p.cvc === 'C' ? '×2' : p.cvc === 'VC' ? '×1.5' : '';
-        return `<div class="player-card" onclick="openPlayerModal('${p.name}')" style="border-color:var(--accent)">
-          <div class="player-role-dot ${roleDot(p.role)}"></div>
-          <div class="player-info">
-            <div class="player-name">${p.name}</div>
-            <div class="player-meta">${p.ipl||'?'} ${cvcBadge}</div>
-          </div>
-          <div>
-            <div class="player-pts ${ptsClass}">${p.display_pts}</div>
-            <div class="player-pts-label">pts${multLabel}</div>
-          </div>
-        </div>`;
-      }).join('')}
-    </div>`;
-  });
-
-  container.innerHTML = html;
-}
 
 function showTab(tab) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -789,7 +639,6 @@ function showTab(tab) {
   document.getElementById(`tab-${tab}`).classList.add('active');
   document.querySelector(`[onclick="showTab('${tab}')"]`).classList.add('active');
   if (tab === 'banter') { loadBanterReactions().then(() => loadBanter()); }
-  if (tab === 'today') { renderToday(); }
 }
 
 // ---- BANTER ----
