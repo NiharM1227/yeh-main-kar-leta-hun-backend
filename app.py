@@ -202,7 +202,7 @@ MATCH_ORDER = {
     "DC vs KKR": 51,"RR vs GT": 52,"CSK vs LSG": 53,"RCB vs MI": 54,"PBKS vs DC": 55,
     "GT vs SRH": 56,"RCB vs KKR": 57,"PBKS vs MI": 58,"LSG vs CSK": 59,"KKR vs GT": 60,
     "PBKS vs RCB": 61,"DC vs RR": 62,"CSK vs SRH": 63,"RR vs LSG": 64,"KKR vs MI": 65,
-    "CSK vs GT": 66,"SRH vs RCB": 67,"LSG vs PBKS": 68,"MI vs RR": 69,"KKR vs DC": 70,"RR vs GT (M52)": 52,"GT vs RR (M9)": 9,"RCB vs GT (Q1)": 71,"RR vs SRH (E1)": 72,"GT vs RR (Q2)": 73,"RR vs GT (Q2)": 73,"F": 74,
+    "CSK vs GT": 66,"SRH vs RCB": 67,"LSG vs PBKS": 68,"MI vs RR": 69,"KKR vs DC": 70,"RR vs GT (M52)": 52,"GT vs RR (M9)": 9,"RCB vs GT (Q1)": 71,"RR vs SRH (E1)": 72,"GT vs RR (Q2)": 73,"RR vs GT (Q2)": 73,"F": 74,"RCB vs GT (F)": 74,
 }
 MATCH_DATES = {
     "RCB vs SRH": "2026-03-28","MI vs KKR": "2026-03-29","RR vs CSK": "2026-03-30",
@@ -228,7 +228,7 @@ MATCH_DATES = {
     "PBKS vs RCB": "2026-05-17","DC vs RR": "2026-05-17","CSK vs SRH": "2026-05-18",
     "RR vs LSG": "2026-05-19","KKR vs MI": "2026-05-20","CSK vs GT": "2026-05-21",
     "SRH vs RCB": "2026-05-22","LSG vs PBKS": "2026-05-23","MI vs RR": "2026-05-24",
-    "KKR vs DC": "2026-05-24","RR vs GT (M52)": "2026-05-09","GT vs RR (M9)": "2026-04-04","RCB vs GT (Q1)": "2026-05-26","RR vs SRH (E1)": "2026-05-27","GT vs RR (Q2)": "2026-05-29","RR vs GT (Q2)": "2026-05-29","F": "2026-05-31","RR vs GT (M52)": "2026-05-09","RCB vs GT (Q1)": "2026-05-26","RR vs SRH (E1)": "2026-05-27","GT vs RR (Q2)": "2026-05-29","RR vs GT (Q2)": "2026-05-29","F": "2026-05-31",
+    "KKR vs DC": "2026-05-24","RR vs GT (M52)": "2026-05-09","GT vs RR (M9)": "2026-04-04","RCB vs GT (Q1)": "2026-05-26","RR vs SRH (E1)": "2026-05-27","GT vs RR (Q2)": "2026-05-29","RR vs GT (Q2)": "2026-05-29","F": "2026-05-31","RCB vs GT (F)": "2026-05-31","RR vs GT (M52)": "2026-05-09","RCB vs GT (Q1)": "2026-05-26","RR vs SRH (E1)": "2026-05-27","GT vs RR (Q2)": "2026-05-29","RR vs GT (Q2)": "2026-05-29","F": "2026-05-31","RCB vs GT (F)": "2026-05-31",
 }
 def get_match_date(match_name):
     if match_name in MATCH_DATES:
