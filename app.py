@@ -196,13 +196,13 @@ MATCH_ORDER = {
     "SRH vs RR": 21,"CSK vs KKR": 22,"RCB vs LSG": 23,"MI vs PBKS": 24,"GT vs KKR": 25,
     "RCB vs DC": 26,"SRH vs CSK": 27,"KKR vs RR": 28,"PBKS vs LSG": 29,"GT vs MI": 30,
     "SRH vs DC": 31,"LSG vs RR": 32,"MI vs CSK": 33,"RCB vs GT": 34,"DC vs PBKS": 35,
-    "RR vs SRH": 36,"GT vs CSK": 37,"LSG vs KKR": 38,"DC vs RCB": 39,"PBKS vs RR": 40,
+    "RR vs SRH": 36,"CSK vs GT": 37,"LSG vs KKR": 38,"DC vs RCB": 39,"PBKS vs RR": 40,
     "MI vs SRH": 41,"GT vs RCB": 42,"RR vs DC": 43,"CSK vs MI": 44,"SRH vs KKR": 45,
     "GT vs PBKS": 46,"MI vs LSG": 47,"DC vs CSK": 48,"SRH vs PBKS": 49,"LSG vs RCB": 50,
     "DC vs KKR": 51,"RR vs GT": 52,"CSK vs LSG": 53,"RCB vs MI": 54,"PBKS vs DC": 55,
     "GT vs SRH": 56,"RCB vs KKR": 57,"PBKS vs MI": 58,"LSG vs CSK": 59,"KKR vs GT": 60,
     "PBKS vs RCB": 61,"DC vs RR": 62,"CSK vs SRH": 63,"RR vs LSG": 64,"KKR vs MI": 65,
-    "CSK vs GT": 66,"SRH vs RCB": 67,"LSG vs PBKS": 68,"MI vs RR": 69,"KKR vs DC": 70,"RR vs GT (M52)": 52,"GT vs RR (M9)": 9,"RCB vs GT (Q1)": 71,"RR vs SRH (E1)": 72,"GT vs RR (Q2)": 73,"RR vs GT (Q2)": 73,"F": 74,"RCB vs GT (F)": 74,
+    "GT vs CSK": 66,"SRH vs RCB": 67,"LSG vs PBKS": 68,"MI vs RR": 69,"KKR vs DC": 70,"RR vs GT (M52)": 52,"GT vs RR (M9)": 9,"RCB vs GT (Q1)": 71,"RR vs SRH (E1)": 72,"GT vs RR (Q2)": 73,"RR vs GT (Q2)": 73,"F": 74,"RCB vs GT (F)": 74,
 }
 MATCH_DATES = {
     "RCB vs SRH": "2026-03-28","MI vs KKR": "2026-03-29","RR vs CSK": "2026-03-30",
@@ -217,7 +217,7 @@ MATCH_DATES = {
     "KKR vs RR": "2026-04-19","PBKS vs LSG": "2026-04-19","GT vs MI": "2026-04-20",
     "SRH vs DC": "2026-04-21","LSG vs RR": "2026-04-22","MI vs CSK": "2026-04-23",
     "RCB vs GT": "2026-04-24","DC vs PBKS": "2026-04-25","RR vs SRH": "2026-04-25",
-    "GT vs CSK": "2026-04-26","LSG vs KKR": "2026-04-26","DC vs RCB": "2026-04-27",
+    "CSK vs GT": "2026-04-26","LSG vs KKR": "2026-04-26","DC vs RCB": "2026-04-27",
     "PBKS vs RR": "2026-04-28","MI vs SRH": "2026-04-29","GT vs RCB": "2026-04-30",
     "RR vs DC": "2026-05-01","CSK vs MI": "2026-05-02","SRH vs KKR": "2026-05-03",
     "GT vs PBKS": "2026-05-03","MI vs LSG": "2026-05-04","DC vs CSK": "2026-05-05",
@@ -226,7 +226,7 @@ MATCH_DATES = {
     "PBKS vs DC": "2026-05-11","GT vs SRH": "2026-05-12","RCB vs KKR": "2026-05-13",
     "PBKS vs MI": "2026-05-14","LSG vs CSK": "2026-05-15","KKR vs GT": "2026-05-16",
     "PBKS vs RCB": "2026-05-17","DC vs RR": "2026-05-17","CSK vs SRH": "2026-05-18",
-    "RR vs LSG": "2026-05-19","KKR vs MI": "2026-05-20","CSK vs GT": "2026-05-21",
+    "RR vs LSG": "2026-05-19","KKR vs MI": "2026-05-20","GT vs CSK": "2026-05-21",
     "SRH vs RCB": "2026-05-22","LSG vs PBKS": "2026-05-23","MI vs RR": "2026-05-24",
     "KKR vs DC": "2026-05-24","RR vs GT (M52)": "2026-05-09","GT vs RR (M9)": "2026-04-04","RCB vs GT (Q1)": "2026-05-26","RR vs SRH (E1)": "2026-05-27","GT vs RR (Q2)": "2026-05-29","RR vs GT (Q2)": "2026-05-29","F": "2026-05-31","RCB vs GT (F)": "2026-05-31","RR vs GT (M52)": "2026-05-09","RCB vs GT (Q1)": "2026-05-26","RR vs SRH (E1)": "2026-05-27","GT vs RR (Q2)": "2026-05-29","RR vs GT (Q2)": "2026-05-29","F": "2026-05-31","RCB vs GT (F)": "2026-05-31",
 }
