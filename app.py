@@ -404,12 +404,35 @@ def get_leaderboard():
             if "__penalties__" not in owner_match_pts[owner]:
                 owner_match_pts[owner]["__penalties__"] = 0
             owner_match_pts[owner]["__penalties__"] += penalty
+    # Calculate per-player totals for top 11 rule
+    owner_player_totals = {owner: {} for owner in TEAMS}
+    for stat in all_stats:
+        player_name = normalize_name(stat["player"])
+        match = stat["match"]
+        raw_pts = stat["pts"]
+        for owner, team in TEAMS.items():
+            for p in team["players"]:
+                if p["name"] == player_name:
+                    if owner in replacement_effective and player_name in replacement_effective[owner]:
+                        effective_date = replacement_effective[owner][player_name]
+                        match_date = get_match_date(match)
+                        if match_date < effective_date:
+                            continue
+                    mult = get_multiplier(owner, player_name, match)
+                    if player_name not in owner_player_totals[owner]:
+                        owner_player_totals[owner][player_name] = 0
+                    owner_player_totals[owner][player_name] += raw_pts * mult
+
     result = []
     for owner in TEAMS:
         match_pts = owner_match_pts[owner]
         penalty = match_pts.pop("__penalties__", 0)
-        total = sum(match_pts.values()) + penalty
-        result.append({"name": owner, "total": round(total, 1), "penalty": round(penalty, 1), "match_pts": {m: round(match_pts.get(m, 0), 1) for m in matches_played}})
+        full_total = sum(match_pts.values()) + penalty
+        # Top 11 rule: only count top 11 players by total points
+        player_totals = owner_player_totals[owner]
+        top_11 = sorted(player_totals.values(), reverse=True)[:11]
+        top_11_total = sum(top_11) + penalty
+        result.append({"name": owner, "total": round(top_11_total, 1), "full_total": round(full_total, 1), "penalty": round(penalty, 1), "match_pts": {m: round(match_pts.get(m, 0), 1) for m in matches_played}})
     result.sort(key=lambda x: x["total"], reverse=True)
     for i, r in enumerate(result):
         r["rank"] = i + 1
